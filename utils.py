@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.distributions as dist
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import matplotlib.transforms as transforms
 
 
 def get_dataset_path(name, split):
@@ -55,3 +57,33 @@ def set_seed(seed):
     if torch.cuda.is_available():   # GPU operations have separate seed
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+
+
+def plot_ts_with_encoding(ts, enc, seg_len, enc_len):
+    """
+    :param ts: array containing time series
+    :param enc: array containing time series encoded as string
+    :param seg_len: length of each patch
+    :param enc_len: length of encoding for each patch
+    :return: fig, ax
+    """
+    # todo: still need to tune some things manually
+    #  (starting pos of text, text may not fit between vlines)
+
+    fig, ax = plt.subplots()
+    fig.set_dpi(300)
+    fig.set_size_inches(8, 4)
+    trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
+
+    ax.plot(ts)
+
+    for i in range((len(ts) // seg_len) + 1):   # loop from 0 to number of segments
+        seg_x = i * seg_len
+        seg_enc = enc[i * enc_len:(1 + i) * enc_len]
+        seg_enc = [str(x) for x in seg_enc]
+        ax.axvline(seg_x, color="k", linestyle="dashed", alpha=0.5)
+        # 2, 0.05, fontsize is arbitrary, need to adjust depending on ts
+        ax.text(seg_x + 2, 0.05, "".join(seg_enc), fontsize=8, transform=trans)
+
+    plt.tight_layout()
+    return fig, ax

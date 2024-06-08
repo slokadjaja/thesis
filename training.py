@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument("--batch_size", default=4)
     parser.add_argument("--lr", default=1e-4)
     parser.add_argument("--beta", default=1)
+    parser.add_argument("--patch_len", default=None)
     # todo later also include parameters specified in model class
 
     return parser.parse_args()
@@ -34,10 +35,11 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     lr = args.lr
     beta = args.beta
+    patch_len = args.patch_len
 
     # Load dataset
-    train = UCRDataset(dataset, "train")
-    test = UCRDataset(dataset, "test")
+    train = UCRDataset(dataset, "train", patch_len=patch_len)
+    test = UCRDataset(dataset, "test", patch_len=patch_len)
     # shape of batch: [batch_size, 1, length]
     train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=True)
