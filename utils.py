@@ -46,3 +46,11 @@ def cat_kl_div(logits, n_latent, n_classes):
 
 def reconstruction_loss(x_true, x_out):
     return F.mse_loss(x_true, x_out)
+
+
+def set_seed(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():   # GPU operations have separate seed
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
