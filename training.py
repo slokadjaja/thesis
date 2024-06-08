@@ -38,8 +38,8 @@ if __name__ == "__main__":
     # Load dataset
     train = UCRDataset(dataset, "train")
     test = UCRDataset(dataset, "test")
-    train_dataloader = DataLoader(train, batch_size=batch_size,
-                                  shuffle=True)  # shape of batch -> [batch_size, 1, length]
+    # shape of batch: [batch_size, 1, length]
+    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=True)
 
     # Define and train model

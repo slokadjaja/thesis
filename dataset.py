@@ -7,23 +7,36 @@ from utils import get_dataset_path
 
 
 class UCRDataset(Dataset):
-    def __init__(self, name: str, split: str, c=None):
+    def __init__(self, name: str, split: str, patch_len=None):
         """
         :param name: dataset name from ucr collection
         :param split: either "test" or "train"
-        :param c: None or int that specifies that
-                        time series should be split into chunks of length c
+        :param patch_len: None or integer that specifies that
+                            the time series should be split into chunks of length patch_len
         """
-        arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
-        self.x = torch.from_numpy(arr[:, 1:]).unsqueeze(1).float()
-        self.y = torch.from_numpy(arr[:, 0])
+        self.patch_len = patch_len
 
-        if c:
-            # only self.x is split into chunks
-            pass
+        arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
+        x_np = arr[:, 1:]
+
+        if self.patch_len is not None:
+            # if time series length is not divisible by patch_len, remove excess values
+            # todo is there a better solution?
+            mod = x_np.shape[1] % self.patch_len
+            if mod != 0:
+                x_np = x_np[:, :-mod]
+
+            # only self.x is split into patches
+            x_np = x_np.reshape((-1, self.patch_len))
+
+        self.x = torch.from_numpy(x_np).unsqueeze(1).float()
+        self.y = torch.from_numpy(arr[:, 0])
 
     def __len__(self):
         return len(self.y)
 
     def __getitem__(self, item):
-        return self.x[item], self.y[item]
+        if self.patch_len is not None:
+            return self.x[item], None
+        else:
+            return self.x[item], self.y[item]
