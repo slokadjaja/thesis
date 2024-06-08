@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument("--batch_size", default=4)
     parser.add_argument("--lr", default=1e-4)
     parser.add_argument("--beta", default=1)
+    # todo later also include parameters specified in model class
 
     return parser.parse_args()
 
