@@ -7,12 +7,11 @@
 
 Priority:
 - model encode per patch
-- plot binary with time series together, replicate plot dari folie
+- replicate plot from presentation
 - enc, dec: 1d convolution, lstm
 - implement 1 downstream task
 - see if similar patches result in similar binary codes
 - baseline -> cluster binary codes , time series patches
-- slides before meetings, plots
 
 Nice to have
 

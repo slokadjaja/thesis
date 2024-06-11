@@ -33,10 +33,10 @@ class UCRDataset(Dataset):
         self.y = torch.from_numpy(arr[:, 0])
 
     def __len__(self):
-        return len(self.y)
+        return len(self.x)
 
     def __getitem__(self, item):
         if self.patch_len is not None:
-            return self.x[item], None
+            return self.x[item], 0
         else:
             return self.x[item], self.y[item]
