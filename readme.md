@@ -11,7 +11,7 @@ Priority:
 - see if similar patches result in similar binary codes or
   - if similar binary codes corr. to similar patches
 - normalize ts
-- play with softmax temperature, number of bits
+- play with hyperparams, activations, softmax temperature, number of bits
   - its ok if number of bits larger than patch length
 - plot ts with real encodings
 
