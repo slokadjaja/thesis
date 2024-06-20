@@ -55,22 +55,25 @@ if __name__ == "__main__":
                 alphabet_size=alphabet_size).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    loss_arr = []
-    loss = None
-    x = None
+    # track entire loss, and also components (reconstruction loss, kl divergence)
+    loss_arr, rec_arr, kl_arr = [], [], []
+    x, loss, rec_loss, kl_div = None, None, None, None
 
     for epoch in tqdm(range(num_epochs), desc="Epoch"):
         for x, y in train_dataloader:
             x = x.to(device)
 
             logits, output = model(x)
-            loss = reconstruction_loss(torch.squeeze(x, dim=1), output) + \
-                beta * cat_kl_div(logits, n_latent=n_latent, alphabet_size=alphabet_size)
+            rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), output)
+            kl_div = cat_kl_div(logits, n_latent=n_latent, alphabet_size=alphabet_size)
+            loss = rec_loss + beta * kl_div
 
             loss.backward()
             optimizer.step()
 
         loss_arr.append(loss.item())
+        rec_arr.append(rec_loss.item())
+        kl_arr.append(kl_div.item())
 
     # Encode samples from training set
     n = 500
@@ -88,7 +91,10 @@ if __name__ == "__main__":
 
     # Plot loss
     fig, ax = plt.subplots()
-    ax.plot(list(range(num_epochs)), loss_arr)
+    ax.plot(loss_arr, label="Loss")
+    ax.plot(kl_arr, alpha=0.6, label="KL divergence")
+    ax.plot(rec_arr, alpha=0.6, label="Reconstruction loss")
+    ax.legend()
     ax.set(xlabel='Epoch', ylabel='Loss')
     plt.title(f"Loss Curve ({dataset})")
     # plt.savefig(f"loss_patch.png", dpi=300)

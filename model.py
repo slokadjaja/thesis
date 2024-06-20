@@ -13,6 +13,7 @@ class VAE(nn.Module):
         self.n_latent = n_latent
         self.temperature = temperature
 
+        # LazyLinear layer could be helpful
         self.encoder = nn.Sequential(
             nn.Linear(self.input_dim, self.h_dim),
             nn.ReLU(),
@@ -27,6 +28,9 @@ class VAE(nn.Module):
             nn.Linear(self.h_dim, self.input_dim),
             # nn.ReLU()
         )
+
+        self.cnn_encoder = nn.Sequential()
+        self.cnn_decoder = nn.Sequential()
 
     def forward(self, x):
         logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
