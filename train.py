@@ -13,7 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Training parameters')
 
     parser.add_argument("--dataset", type=str, default="ArrowHead")
-    parser.add_argument("--epoch", type=int, default=100)
+    parser.add_argument("--epoch", type=int, default=500)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--lr", type=float, default=5e-5)
     parser.add_argument("--beta", type=int, default=1)
@@ -83,8 +83,10 @@ if __name__ == "__main__":
 
     # Plot reconstruction example
     idx = 0
-    plt.plot(x[idx].squeeze(), label="ground truth")
-    plt.plot(model(x[idx])[1].detach().numpy().squeeze(), label="reconstruction")
+    # input shape should be [1, 1, * ] instead of [1, * ], otherwise flatten in cnn_encoder does not work
+    sample = torch.unsqueeze(x[idx], 0)
+    plt.plot(sample.squeeze(), label="ground truth")
+    plt.plot(model(sample)[1].detach().numpy().squeeze(), label="reconstruction")
     plt.legend()
     plt.title(f"Reconstruction Example ({dataset})")
     # plt.savefig(f"recon_patch_{idx}.png", dpi=300)

@@ -14,31 +14,56 @@ class VAE(nn.Module):
         self.temperature = temperature
 
         # LazyLinear layer could be helpful
-        self.encoder = nn.Sequential(
+        self.fc_encoder = nn.Sequential(
             nn.Linear(self.input_dim, self.h_dim),
             nn.ReLU(),
-            nn.Linear(self.h_dim, self.alphabet_size*self.n_latent),
+            nn.Linear(self.h_dim, self.alphabet_size * self.n_latent),
             nn.ReLU()
         )
 
-        self.decoder = nn.Sequential(
+        self.fc_decoder = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(self.alphabet_size*self.n_latent, self.h_dim),
+            nn.Linear(self.alphabet_size * self.n_latent, self.h_dim),
             nn.ReLU(),
             nn.Linear(self.h_dim, self.input_dim),
             # nn.ReLU()
         )
 
-        self.cnn_encoder = nn.Sequential()
-        self.cnn_decoder = nn.Sequential()
+        # TODO: CNN only works for ArrowHead + full ts, have to adjust dimensions for other datasets
+        self.cnn_encoder = nn.Sequential(
+            nn.Conv1d(in_channels=1, out_channels=2, kernel_size=4, stride=1),
+            nn.LeakyReLU(),
+            nn.Conv1d(in_channels=2, out_channels=2, kernel_size=4, stride=2),
+            nn.LeakyReLU(),
+            nn.MaxPool1d(kernel_size=2, stride=4),
+            nn.Flatten(),
+            nn.Linear(in_features=62, out_features=32),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=32, out_features=self.alphabet_size * self.n_latent),
+            nn.LeakyReLU(),
+        )
+
+        self.cnn_decoder = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=self.alphabet_size * self.n_latent, out_features=32),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=32, out_features=62),
+            nn.LeakyReLU(),
+            nn.Unflatten(dim=1, unflattened_size=(2, 31)),
+            # 2: channels, 31: length after maxpool in encoder, before flatten
+            nn.Upsample(size=123),  # length before maxpool
+            nn.ConvTranspose1d(in_channels=2, out_channels=2, kernel_size=4, stride=2),
+            nn.LeakyReLU(),
+            nn.ConvTranspose1d(in_channels=2, out_channels=1, kernel_size=4, stride=1),
+        )
 
     def forward(self, x):
-        logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
+        logits = self.cnn_encoder(x).view(-1, self.n_latent, self.alphabet_size)
         z = gumbel_softmax(logits, self.temperature)
-        output = self.decoder(z)
+        output = self.cnn_decoder(z)
         return logits, output
 
     def encode(self, x):
-        logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
-        z = gumbel_softmax(logits, 1e-3)    # set temp close to zero to turn softmax into argmax
+        logits = self.cnn_encoder(x).view(-1, self.n_latent, self.alphabet_size)
+        z = gumbel_softmax(logits, 1e-3)  # set temp close to zero to turn softmax into argmax
         return torch.argmax(z, dim=-1)

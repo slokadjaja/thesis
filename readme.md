@@ -6,6 +6,7 @@
 ### Todos 
 
 Priority:
+- see how to fix noisy loss, reconstruction
 - enc, dec: 1d convolution, lstm
 - implement 1 downstream task
 - see if similar patches result in similar binary codes or
