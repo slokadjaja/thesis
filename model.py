@@ -4,7 +4,7 @@ from utils import gumbel_softmax
 
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, h_dim=100, alphabet_size=2, n_latent=10, temperature=0.1):
+    def __init__(self, input_dim, h_dim=100, alphabet_size=2, n_latent=10, temperature=0.1, model="fc"):
         super().__init__()
 
         self.input_dim = input_dim
@@ -13,15 +13,14 @@ class VAE(nn.Module):
         self.n_latent = n_latent
         self.temperature = temperature
 
-        # LazyLinear layer could be helpful
-        self.fc_encoder = nn.Sequential(
+        fc_encoder = nn.Sequential(
             nn.Linear(self.input_dim, self.h_dim),
             nn.ReLU(),
             nn.Linear(self.h_dim, self.alphabet_size * self.n_latent),
             nn.ReLU()
         )
 
-        self.fc_decoder = nn.Sequential(
+        fc_decoder = nn.Sequential(
             nn.Flatten(),
             nn.Linear(self.alphabet_size * self.n_latent, self.h_dim),
             nn.ReLU(),
@@ -30,7 +29,7 @@ class VAE(nn.Module):
         )
 
         # TODO: CNN only works for ArrowHead + full ts, have to adjust dimensions for other datasets
-        self.cnn_encoder = nn.Sequential(
+        cnn_encoder = nn.Sequential(
             nn.Conv1d(in_channels=1, out_channels=2, kernel_size=4, stride=1),
             nn.LeakyReLU(),
             nn.Conv1d(in_channels=2, out_channels=2, kernel_size=4, stride=2),
@@ -43,7 +42,7 @@ class VAE(nn.Module):
             nn.LeakyReLU(),
         )
 
-        self.cnn_decoder = nn.Sequential(
+        cnn_decoder = nn.Sequential(
             nn.Flatten(),
             nn.Linear(in_features=self.alphabet_size * self.n_latent, out_features=32),
             nn.LeakyReLU(),
@@ -57,13 +56,22 @@ class VAE(nn.Module):
             nn.ConvTranspose1d(in_channels=2, out_channels=1, kernel_size=4, stride=1),
         )
 
+        if model == "fc":
+            self.encoder = fc_encoder
+            self.decoder = fc_decoder
+        elif model == "cnn":
+            self.encoder = cnn_encoder
+            self.decoder = cnn_decoder
+        else:
+            raise Exception("choose between fc and cnn")
+
     def forward(self, x):
-        logits = self.cnn_encoder(x).view(-1, self.n_latent, self.alphabet_size)
+        logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
         z = gumbel_softmax(logits, self.temperature)
-        output = self.cnn_decoder(z)
+        output = self.decoder(z)
         return logits, output
 
     def encode(self, x):
-        logits = self.cnn_encoder(x).view(-1, self.n_latent, self.alphabet_size)
+        logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
         z = gumbel_softmax(logits, 1e-3)  # set temp close to zero to turn softmax into argmax
         return torch.argmax(z, dim=-1)

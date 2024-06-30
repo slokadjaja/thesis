@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=5e-5)
     parser.add_argument("--beta", type=int, default=1)
     parser.add_argument("--patch_len", type=int, default=None)
+    parser.add_argument("--normalize", type=str, default=None)
     # todo later also include parameters specified in model class
 
     return parser.parse_args()
@@ -29,16 +30,9 @@ if __name__ == "__main__":
 
     # Define constants
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dataset, num_epochs, batch_size, lr, beta, patch_len = \
-        args.dataset, args.epoch, args.batch_size, args.lr, args.beta, args.patch_len
+    dataset, num_epochs, batch_size, lr, beta, patch_len, normalize = \
+        args.dataset, args.epoch, args.batch_size, args.lr, args.beta, args.patch_len, args.normalize
     ts_length = get_ts_length(dataset)
-
-    # Load dataset
-    train = UCRDataset(dataset, "train", patch_len=patch_len)
-    test = UCRDataset(dataset, "test", patch_len=patch_len)
-    # shape of batch: [batch_size, 1, length]
-    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
-    test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=True)
 
     if patch_len is None:
         input_dim = ts_length
@@ -47,6 +41,14 @@ if __name__ == "__main__":
 
     n_latent = input_dim // 4
     alphabet_size = 2
+
+    # todo normalize
+    # Load dataset
+    train = UCRDataset(dataset, "train", patch_len=patch_len)
+    test = UCRDataset(dataset, "test", patch_len=patch_len)
+    # shape of batch: [batch_size, 1, length]
+    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=True)
 
     # Define and train model
     model = VAE(input_dim=input_dim,
@@ -62,6 +64,8 @@ if __name__ == "__main__":
     for epoch in tqdm(range(num_epochs), desc="Epoch"):
         for x, y in train_dataloader:
             x = x.to(device)
+
+            optimizer.zero_grad()
 
             logits, output = model(x)
             rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), output)

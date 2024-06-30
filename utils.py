@@ -87,3 +87,17 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len):
 
     plt.tight_layout()
     return fig, ax
+
+
+def conv_out_len_multiple(l_in, out_channels, arr):
+    # arr: contain tuples (kernel, stride, pad)
+    out_len_arr = [l_in]
+    for a in arr:
+        out_len_arr.append(conv_out_len(out_len_arr[-1], *a))
+
+    return out_len_arr[-1] * out_channels
+
+
+def conv_out_len(l_in, kernel, stride, pad=0):
+    import math
+    return math.floor(1 + (l_in + 2 * pad - kernel) / stride)
