@@ -23,18 +23,6 @@ class UCRDataset(Dataset):
         arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
         x_np = arr[:, 1:]
 
-        # split ts into patches
-        if self.patch_len is not None:
-            # if time series length is not divisible by patch_len, remove excess values
-            # todo is there a better solution?
-            mod = x_np.shape[1] % self.patch_len
-            if mod != 0:
-                x_np = x_np[:, :-mod]
-
-            # only self.x is split into patches
-            x_np = x_np.reshape((-1, self.patch_len))
-
-        # todo normalize entire ts first? or is it ok to normalize per patch?
         # normalize samples
         if normalize:
             if norm_method == "standard":
@@ -47,6 +35,16 @@ class UCRDataset(Dataset):
                 raise Exception("choose between standard, minmax, or robust")
 
             x_np = scaler.fit_transform(x_np)
+
+        # split ts into patches
+        if self.patch_len is not None:
+            # if time series length is not divisible by patch_len, remove excess values
+            mod = x_np.shape[1] % self.patch_len
+            if mod != 0:
+                x_np = x_np[:, :-mod]
+
+            # only self.x is split into patches
+            x_np = x_np.reshape((-1, self.patch_len))
 
         self.x = torch.from_numpy(x_np).unsqueeze(1).float()
         self.y = torch.from_numpy(arr[:, 0])

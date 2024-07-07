@@ -40,7 +40,6 @@ def gumbel_softmax(logits: torch.Tensor, temperature: float) -> torch.Tensor:
 
 
 def cat_kl_div(logits, n_latent, alphabet_size):
-    # todo: get n_latent, alphabet_size from vae class? -> less error prone
     q = dist.Categorical(logits=logits)
     p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0/alphabet_size))
     kl = dist.kl.kl_divergence(q, p)
