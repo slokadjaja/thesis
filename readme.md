@@ -1,4 +1,4 @@
-## Discrete Representation of Time Series Data using VAE with Discrete Latent Variables
+## Symbolic Representation of Time Series Data using VAEs with Discrete Latent Variables
 
 ### Summary
 

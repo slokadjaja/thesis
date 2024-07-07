@@ -57,10 +57,11 @@ if __name__ == "__main__":
                 alphabet_size=alphabet_size).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    # track entire loss, and also components (reconstruction loss, kl divergence)
+    # Track entire loss, and also components (reconstruction loss, kl divergence)
     loss_arr, rec_arr, kl_arr = [], [], []
     x, loss, rec_loss, kl_div = None, None, None, None
 
+    # Training loop
     for epoch in tqdm(range(num_epochs), desc="Epoch"):
         for x, y in train_dataloader:
             x = x.to(device)
