@@ -8,7 +8,7 @@
   "lr": 5e-4,
   "beta": 0.1,
 
-  "model": "fc",
+  "arch": "fc",
   "patch_len": 16,
   "n_latent": 100,
   "alphabet_size": 16,
