@@ -24,13 +24,13 @@ class VAE(nn.Module):
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(500, self.alphabet_size*self.n_latent)
+            nn.Linear(500, self.alphabet_size * self.n_latent)
         )
 
         fc_decoder = nn.Sequential(
             nn.Flatten(),
             nn.Dropout(0.3),
-            nn.Linear(self.alphabet_size*self.n_latent, 500),
+            nn.Linear(self.alphabet_size * self.n_latent, 500),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(500, 500),
@@ -42,21 +42,33 @@ class VAE(nn.Module):
             nn.Linear(500, self.input_dim)
         )
 
+        len_after_conv = conv_out_len_multiple(self.input_dim, [(4, 1, 0), (3, 1, 0), (2, 1, 0)])
         cnn_encoder = nn.Sequential(
-            nn.Conv1d(in_channels=1, out_channels=2, kernel_size=4, stride=1),
-            nn.LeakyReLU(),
-            nn.Conv1d(in_channels=2, out_channels=2, kernel_size=4, stride=2),
-            nn.LeakyReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=4),
+            nn.Conv1d(in_channels=1, out_channels=128, kernel_size=4),
+            nn.BatchNorm1d(num_features=128),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3),
+            nn.BatchNorm1d(num_features=256),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=256, out_channels=128, kernel_size=2),
+            nn.BatchNorm1d(num_features=128),
+            nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(in_features=62, out_features=32),
-            nn.LeakyReLU(),
-            nn.Linear(in_features=32, out_features=self.alphabet_size * self.n_latent),
-            nn.LeakyReLU(),
+            nn.Linear(len_after_conv * 128, self.alphabet_size * self.n_latent)
         )
 
         cnn_decoder = nn.Sequential(
-
+            nn.Flatten(),
+            nn.Linear(self.alphabet_size * self.n_latent, len_after_conv * 128),
+            nn.Unflatten(dim=1, unflattened_size=(128, len_after_conv)),
+            nn.ConvTranspose1d(in_channels=128, out_channels=256, kernel_size=2),
+            nn.BatchNorm1d(num_features=256),
+            nn.ReLU(),
+            nn.ConvTranspose1d(in_channels=256, out_channels=128, kernel_size=3),
+            nn.BatchNorm1d(num_features=128),
+            nn.ReLU(),
+            nn.ConvTranspose1d(in_channels=128, out_channels=1, kernel_size=4),
+            # nn.ReLU(),
         )
 
         if self.model == "fc":
