@@ -18,7 +18,9 @@ if __name__ == "__main__":
         params.patch_len, params.normalize, params.norm_method, params.n_latent, params.alphabet_size, \
         params.temperature, params.arch, params.seed
 
-    set_seed(seed)
+    if seed:
+        set_seed(seed)
+
     ts_length = get_ts_length(dataset)
 
     if patch_len is None:
