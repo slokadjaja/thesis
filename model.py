@@ -29,6 +29,7 @@ class VAE(nn.Module):
 
         fc_decoder = nn.Sequential(
             nn.Flatten(),
+            nn.Unflatten(1, (1, self.alphabet_size * self.n_latent)),
             nn.Dropout(0.3),
             nn.Linear(self.alphabet_size * self.n_latent, 500),
             nn.ReLU(),
