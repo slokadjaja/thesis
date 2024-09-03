@@ -34,7 +34,6 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
 
     # Define and train model
-    # todo how to best specify architecture?
     vae = VAE(input_dim, alphabet_size, n_latent, temperature, arch).to(device)
     optimizer = torch.optim.Adam(vae.parameters(), lr=lr)
 
@@ -42,8 +41,7 @@ if __name__ == "__main__":
     loss_arr, rec_arr, kl_arr = [], [], []
     x, loss, rec_loss, kl_div = None, None, None, None
 
-    mlflow.set_tracking_uri("databricks")
-    exp = mlflow.set_experiment(f'/Users/sammyloka@yahoo.com/{arch}')
+    exp = mlflow.set_experiment(experiment_id=arch)
 
     with mlflow.start_run():
         # Training loop

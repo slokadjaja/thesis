@@ -2,3 +2,4 @@
 mlruns/
 mlartifacts/
 test*.py
+.idea/

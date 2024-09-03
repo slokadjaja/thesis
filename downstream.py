@@ -7,6 +7,8 @@ from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 import numpy as np
 from utils import get_dataset_path
 
+model_path = "baseline_models/fc/model.pt"
+
 
 def vae_encoding():
     # todo

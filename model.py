@@ -88,5 +88,6 @@ class VAE(nn.Module):
 
     def encode(self, x):
         logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
-        z = gumbel_softmax(logits, 1e-3)  # set temp close to zero to turn softmax into argmax
-        return torch.argmax(z, dim=-1)
+        # try argmax instead of sampling
+        # z = gumbel_softmax(logits, 1e-3)  # set temp close to zero to turn softmax into argmax
+        return torch.argmax(logits, dim=-1)
