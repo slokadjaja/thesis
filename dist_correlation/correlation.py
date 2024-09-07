@@ -9,6 +9,8 @@ from tslearn.metrics import dtw
 from scipy.spatial import distance
 from itertools import combinations
 from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
+
 
 params_path = "../baseline_models/fc/params.json"
 model_path = "../baseline_models/fc/model.pt"
@@ -32,19 +34,24 @@ def calc_distances():
     dtw_arr = []
     l2_arr = []
 
-    for patch1, patch2 in combinations(patches, 2):
-        patch1_np = patch1.squeeze().cpu().detach().numpy()
-        patch2_np = patch2.squeeze().cpu().detach().numpy()
+    comb = list(combinations(range(len(patches)), 2))
+    total_iters = len(comb)
 
-        dtw_arr.append(dtw(patch1_np, patch2_np))
-        l2_arr.append(np.linalg.norm(patch2_np - patch1_np))
+    with tqdm(total=total_iters, desc="Combinations: ") as pbar:
+        for patch1, patch2 in combinations(patches, 2):
+            patch1_np = patch1.squeeze().cpu().detach().numpy()
+            patch2_np = patch2.squeeze().cpu().detach().numpy()
+            dtw_arr.append(dtw(patch1_np, patch2_np))
+            l2_arr.append(np.linalg.norm(patch2_np - patch1_np))
 
-        enc1 = vae.encode(patch1).squeeze().cpu().detach().numpy()
-        enc2 = vae.encode(patch2).squeeze().cpu().detach().numpy()
+            enc1 = vae.encode(patch1).squeeze().cpu().detach().numpy()
+            enc2 = vae.encode(patch2).squeeze().cpu().detach().numpy()
+            hamming_arr.append(distance.hamming(enc1, enc2))
 
-        hamming_arr.append(distance.hamming(enc1, enc2))
+            pbar.update(1)
 
     df = pd.DataFrame()
+    df['combination'] = comb
     df['hamming'] = hamming_arr
     df['dtw'] = dtw_arr
     df['l2'] = l2_arr
@@ -61,7 +68,7 @@ def calc_distances():
     df.to_csv('distances.csv', index=False)
 
 
-# calc_distances()
+calc_distances()
 
 data = pd.read_csv('distances.csv')
 
