@@ -1,4 +1,4 @@
-/datasets_ucr/
+/datasets/
 mlruns/
 mlartifacts/
 test*.py
