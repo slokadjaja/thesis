@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 
 class UCRDataset(Dataset):
-    def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard"):
+    def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard", pad=False):
         """
         :param name: dataset name from ucr collection
         :param split: either "test" or "train"
@@ -38,10 +38,14 @@ class UCRDataset(Dataset):
 
         # split ts into patches
         if self.patch_len is not None:
-            # if time series length is not divisible by patch_len, remove excess values
             mod = x_np.shape[1] % self.patch_len
-            if mod != 0:
-                x_np = x_np[:, :-mod]
+            if mod != 0:    # if time series length is not divisible by patch_len,
+                if pad:
+                    # pad with zeros
+                    x_np = np.pad(x_np, ((0, 0), (0, patch_len-mod)), mode='constant', constant_values=0)
+                else:
+                    # remove excess values
+                    x_np = x_np[:, :-mod]
 
             # only self.x is split into patches
             x_np = x_np.reshape((-1, self.patch_len))
