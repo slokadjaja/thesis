@@ -14,6 +14,11 @@
   "alphabet_size": 16,
   "temperature": 0.2,
 
+  "top_quantile": 7.75736932,
+  "bottom_quantile": 0.799533884,
+  "margin": 10,
+  "alpha": 1,
+
   "normalize": false,
   "norm_method": "standard"
 }

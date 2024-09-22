@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import json
+import random
 
 
 class Params:
@@ -42,7 +43,7 @@ class Params:
 
 def get_dataset_path(name, split):
     current_dir = Path(__file__).resolve().parent
-    data_dir = current_dir / "datasets_ucr"
+    data_dir = current_dir / "datasets/ucr"
 
     if split == "train":
         path = data_dir / f"{name}/{name}_TRAIN.tsv"
@@ -133,3 +134,47 @@ def conv_out_len_multiple(l_in, arr):
 def conv_out_len(l_in, kernel, stride, pad=0):
     import math
     return math.floor(1 + (l_in + 2 * pad - kernel) / stride)
+
+
+def contrastive_loss(batch, top_q, bottom_q, m):
+    # Hyperparams
+    #   - L2 norm quantiles:
+    #       top quantile -> positive pair threshold
+    #       bottom quantile -> negative pair threshold
+    #   - margin
+
+    # For pairwise distance and triplet loss: need to see documentation if not using p-norm
+    data = torch.squeeze(batch)
+    batch_len = data.shape[0]
+    pair_distance = torch.round(torch.cdist(data, data, p=2), decimals=2)
+    torch.set_printoptions(threshold=10_000)
+
+    triplet_loss = 0
+    for i in range(batch_len):
+        anchor = data[i]
+
+        # todo how to handle if no pos/neg sample found?
+        #   - try lower decile? 0.8 0.2 -> 0.7 0.3 etc
+        #   - return 0
+
+        # sample positive and negative patches
+        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data)) != i))[0]
+        if torch.numel(pos_indices) != 0:
+            pos_rand = random.randint(0, len(pos_indices) - 1)
+            pos_sample = data[pos_indices[pos_rand]]
+        else:
+            # no positive sample found
+            return 0
+
+        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data)) != i))[0]
+        if torch.numel(neg_indices) != 0:
+            neg_rand = random.randint(0, len(neg_indices) - 1)
+            neg_sample = data[neg_indices[neg_rand]]
+        else:
+            # no negative sample found
+            return 0
+
+        triplet_loss = triplet_loss + F.triplet_margin_loss(anchor=anchor, positive=pos_sample, negative=neg_sample,
+                                                            margin=m)
+
+    return triplet_loss / batch_len

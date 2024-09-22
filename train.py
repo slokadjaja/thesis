@@ -1,10 +1,9 @@
 import torch
 from torch.utils.data import DataLoader
 from dataset import UCRDataset
-from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params
+from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, contrastive_loss
 from model import VAE
 import matplotlib.pyplot as plt
-import numpy as np
 from tqdm import tqdm
 import mlflow
 
@@ -14,9 +13,10 @@ if __name__ == "__main__":
     # Define constants
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dataset, num_epochs, batch_size, lr, beta, patch_len, normalize, norm_method, n_latent, alphabet_size,\
-        temperature, arch, seed = params.dataset, params.epoch, params.batch_size, params.lr, params.beta, \
-        params.patch_len, params.normalize, params.norm_method, params.n_latent, params.alphabet_size, \
-        params.temperature, params.arch, params.seed
+        temperature, arch, seed, top_quantile, bottom_quantile, margin, alpha = params.dataset, params.epoch, \
+        params.batch_size, params.lr, params.beta, params.patch_len, params.normalize, params.norm_method, \
+        params.n_latent, params.alphabet_size, params.temperature, params.arch, params.seed, params.top_quantile, \
+        params.bottom_quantile, params.margin, params.alpha
 
     if seed:
         set_seed(seed)
@@ -53,7 +53,9 @@ if __name__ == "__main__":
                 logits, output = vae(x)
                 rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), torch.squeeze(output, dim=1))
                 kl_div = cat_kl_div(logits, n_latent=n_latent, alphabet_size=alphabet_size)
-                loss = rec_loss + beta * kl_div
+                closs = contrastive_loss(x, top_quantile, bottom_quantile, margin)
+
+                loss = rec_loss + beta * kl_div + alpha * closs
 
                 optimizer.zero_grad()
                 loss.backward()
