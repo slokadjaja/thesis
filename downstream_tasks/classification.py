@@ -11,6 +11,9 @@ import torch
 model_path = "../baseline_models/fc/model.pt"
 params_path = "../baseline_models/fc/params.json"
 
+# todo how to compare SAX and VAE if embeddings have different lengths?
+#   SAX: n_segments, VAE: #patches * #symbols_per_patch -> dataset specific
+
 
 def vae_encoding(model, data, patch_length):
     # assume data shape: (batch, 1, len)
@@ -64,12 +67,11 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
 def main():
     params = Params(params_path)
 
-    # todo do we need normalize, norm method (??)
-    dataset, patch_len, alphabet_size, n_latent, arch = \
-        params.dataset, params.patch_len, params.alphabet_size, params.n_latent, params.arch
+    # Get VAE hyperparams
+    patch_len, alphabet_size, n_latent, arch = params.patch_len, params.alphabet_size, params.n_latent, params.arch
+    dataset = "Wine"
 
-    # Define parameters and paths
-    # todo make sure vae and sax use same n_segments, alphabet_size
+    # Define SAX parameters
     n_segments_sax = 128
     alphabet_size_sax = 8
 
