@@ -27,7 +27,6 @@ def vae_encoding(model, data, patch_length):
     encoded_patches = []    # array to store encodings
 
     for i in range(0, data_tensor.shape[-1] - patch_length + 1, patch_length):
-        print(i)
         window = data_tensor[:, i:i + patch_length]
         window = window.unsqueeze(1)  # Shape: (batch, 1, patch_length)
         encoded_output = model.encode(window)
