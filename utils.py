@@ -185,3 +185,33 @@ def contrastive_loss(batch, top_q, bottom_q, m):
                                                             margin=m)
 
     return triplet_loss / batch_len
+
+
+def vae_encoding(model, data, patch_length):
+    # assume input data shape: (batch, 1, len)
+    data = data.squeeze()
+
+    # pad data according to patch_length
+    ts_len = data.shape[-1]
+    mod = ts_len % patch_length
+    data = np.pad(data, ((0, 0), (0, patch_length - mod)), mode='constant', constant_values=0)
+
+    data_tensor = torch.Tensor(data)
+    encoded_patches = []    # array to store encodings
+
+    for i in range(0, data_tensor.shape[-1] - patch_length + 1, patch_length):
+        window = data_tensor[:, i:i + patch_length]
+        window = window.unsqueeze(1)  # Shape: (batch, 1, patch_length)
+        encoded_output = model.encode(window)
+
+        # Remove the batch dimension if needed
+        encoded_output = encoded_output.squeeze(1)  # Shape: (encoded_dim)
+
+        # Store the encoded output
+        encoded_patches.append(encoded_output)
+
+    # Stack all encoded patches into a tensor
+    encoded_patches = torch.cat(encoded_patches, dim=1)
+    encoded_patches_np = encoded_patches.numpy()
+
+    return encoded_patches_np
