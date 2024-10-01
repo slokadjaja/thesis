@@ -6,7 +6,7 @@
   "epoch": 1000,
   "batch_size": 64,
   "lr": 5e-4,
-  "beta": 0.1,
+  "beta": 0.01,
 
   "arch": "fc",
   "patch_len": 16,
@@ -14,9 +14,9 @@
   "alphabet_size": 16,
   "temperature": 0.2,
 
-  "top_quantile": 7.75736932,
-  "bottom_quantile": 0.799533884,
-  "margin": 10,
+  "top_quantile": 3.24,
+  "bottom_quantile": 3.24,
+  "margin": 20,
   "alpha": 1,
 
   "normalize": false,

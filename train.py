@@ -6,13 +6,14 @@ from model import VAE
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import mlflow
+import os
 
 if __name__ == "__main__":
     params = Params("params.json")
 
     # Define constants
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dataset, num_epochs, batch_size, lr, beta, patch_len, normalize, norm_method, n_latent, alphabet_size,\
+    dataset, num_epochs, batch_size, lr, beta, patch_len, normalize, norm_method, n_latent, alphabet_size, \
         temperature, arch, seed, top_quantile, bottom_quantile, margin, alpha = params.dataset, params.epoch, \
         params.batch_size, params.lr, params.beta, params.patch_len, params.normalize, params.norm_method, \
         params.n_latent, params.alphabet_size, params.temperature, params.arch, params.seed, params.top_quantile, \
@@ -38,10 +39,10 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(vae.parameters(), lr=lr)
 
     # Track entire loss, and also components (reconstruction loss, kl divergence)
-    loss_arr, rec_arr, kl_arr = [], [], []
-    x, loss, rec_loss, kl_div = None, None, None, None
+    loss_arr, rec_arr, kl_arr, closs_arr = [], [], [], []
+    x, loss, rec_loss, kl_div, closs = None, None, None, None, None
 
-    exp = mlflow.set_experiment(experiment_id=arch)
+    # exp = mlflow.set_experiment(experiment_id=arch)
 
     with mlflow.start_run():
         # Training loop
@@ -64,26 +65,30 @@ if __name__ == "__main__":
             loss_arr.append(loss.item())
             rec_arr.append(rec_loss.item())
             kl_arr.append(kl_div.item())
+            closs_arr.append(closs.item())
 
-            mlflow.log_metrics({"total loss": loss.item(),
-                                "reconstruction loss": rec_loss.item(),
-                                "kl divergence": kl_div.item()}, step=epoch
-                               )
+            mlflow.log_metrics({
+                "total loss": loss.item(), "reconstruction loss": rec_loss.item(), "kl divergence": kl_div.item(),
+                "contrastive loss": closs.item()
+                }, step=epoch
+            )
 
-        # Log hyperparams, model and model summary
+        # Log hyperparams
         mlflow.log_params(params.dict)
+
+        # Log model architecture
         with open("model_summary.txt", "w") as f:
             f.write(repr(vae))
         mlflow.log_artifact("model_summary.txt")
+        os.remove("model_summary.txt")
+
+        # Log model and params
         mlflow.pytorch.log_model(vae, "model")
+        torch.save(vae.state_dict(), "model.pt")
+        mlflow.log_artifact("model.pt")
+        os.remove("model.pt")
 
         vae.eval()
-
-        # Encode samples from training set
-        # n = 500
-        # with open('test_patch.npy', 'wb') as f:
-        #     np.save(f, train[:n][0].detach().numpy().squeeze())
-        #     np.save(f, vae.encode(train[:n][0]).detach().numpy().squeeze())
 
         # Plot reconstruction example
         with torch.no_grad():
@@ -104,6 +109,7 @@ if __name__ == "__main__":
             ax.plot(loss_arr, label="Loss")
             ax.plot(kl_arr, alpha=0.6, label="KL divergence")
             ax.plot(rec_arr, alpha=0.6, label="Reconstruction loss")
+            ax.plot(closs_arr, alpha=0.6, label="Contrastive loss")
             ax.legend()
             ax.set(xlabel='Epoch', ylabel='Loss')
             plt.title(f"Loss Curve ({dataset})")

@@ -143,13 +143,20 @@ def contrastive_loss(batch, top_q, bottom_q, m):
     #       bottom quantile -> negative pair threshold
     #   - margin
 
+    # todo
+    # Problem: closs spiky, not going down during training
+    #   - gradients are really calculated?
+    # Problem: closs is almost always 0
+    # If loss = 0, two possibilities:
+    #   - no pos/neg pair found
+    #   - margin is too small   -> not likely
+
     # For pairwise distance and triplet loss: need to see documentation if not using p-norm
     data = torch.squeeze(batch)
     batch_len = data.shape[0]
     pair_distance = torch.round(torch.cdist(data, data, p=2), decimals=2)
-    torch.set_printoptions(threshold=10_000)
 
-    triplet_loss = 0
+    triplet_loss = torch.tensor(0)
     for i in range(batch_len):
         anchor = data[i]
 
@@ -164,7 +171,7 @@ def contrastive_loss(batch, top_q, bottom_q, m):
             pos_sample = data[pos_indices[pos_rand]]
         else:
             # no positive sample found
-            return 0
+            return torch.tensor(0)
 
         neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data)) != i))[0]
         if torch.numel(neg_indices) != 0:
@@ -172,7 +179,7 @@ def contrastive_loss(batch, top_q, bottom_q, m):
             neg_sample = data[neg_indices[neg_rand]]
         else:
             # no negative sample found
-            return 0
+            return torch.tensor(0)
 
         triplet_loss = triplet_loss + F.triplet_margin_loss(anchor=anchor, positive=pos_sample, negative=neg_sample,
                                                             margin=m)
