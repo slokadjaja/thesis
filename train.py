@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import mlflow
 import os
+from pathlib import Path
+import shutil
+
 
 if __name__ == "__main__":
     params = Params("params.json")
@@ -14,10 +17,10 @@ if __name__ == "__main__":
     # Define constants
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dataset, num_epochs, batch_size, lr, beta, patch_len, normalize, norm_method, n_latent, alphabet_size, \
-        temperature, arch, seed, top_quantile, bottom_quantile, margin, alpha = params.dataset, params.epoch, \
+        temperature, arch, seed, top_quantile, bottom_quantile, margin, alpha, run_name = params.dataset, params.epoch, \
         params.batch_size, params.lr, params.beta, params.patch_len, params.normalize, params.norm_method, \
         params.n_latent, params.alphabet_size, params.temperature, params.arch, params.seed, params.top_quantile, \
-        params.bottom_quantile, params.margin, params.alpha
+        params.bottom_quantile, params.margin, params.alpha, params.run_name
 
     if seed:
         set_seed(seed)
@@ -44,7 +47,7 @@ if __name__ == "__main__":
 
     # exp = mlflow.set_experiment(experiment_id=arch)
 
-    with mlflow.start_run():
+    with mlflow.start_run(run_name=run_name) as run:
         # Training loop
         vae.train()
         for epoch in tqdm(range(num_epochs), desc="Epoch"):
@@ -73,21 +76,28 @@ if __name__ == "__main__":
                 }, step=epoch
             )
 
-        # Log hyperparams
+        # MLFlow: Log hyperparams
         mlflow.log_params(params.dict)
 
-        # Log model architecture
+        # MLFlow: Log model architecture
         with open("model_summary.txt", "w") as f:
             f.write(repr(vae))
         mlflow.log_artifact("model_summary.txt")
-        os.remove("model_summary.txt")
 
-        # Log model and params
+        # MLFlow: Log model and params
         mlflow.pytorch.log_model(vae, "model")
         torch.save(vae.state_dict(), "model.pt")
         mlflow.log_artifact("model.pt")
-        os.remove("model.pt")
 
+        # Save model.pt and params.json to baseline_models folder
+        Path(f"baseline_models/{run_name}").mkdir(parents=True, exist_ok=True)
+        shutil.copy("model_summary.txt", f"baseline_models/{run_name}/model_summary.txt")
+        shutil.copy("model.pt", f"baseline_models/{run_name}/model.pt")
+        shutil.copy("params.json", f"baseline_models/{run_name}/params.json")
+
+        os.remove("model_summary.txt")
+        os.remove("model.pt")
+        
         vae.eval()
 
         # Plot reconstruction example

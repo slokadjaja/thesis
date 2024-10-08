@@ -5,7 +5,8 @@
 We aim to learn symbolic representations of time series data in an unsupervised manner using 
 variational autoencoders (VAEs) with categorical latent variables + Gumbel-softmax reparametrization
 
-MLFlow is used to log metrics, parameters and artefacts. To view runs in UI, run: ```mlflow server --host 127.0.0.1 --port 8080 ```
+MLFlow is used to log metrics, parameters and artefacts. To view runs in UI, run: ```mlflow server --host 127.0.0.1 --port 8080 ```.
+If can't connect due to connection in use, run ```pkill -f gunicorn```
 
 Model is tested using two downstream tasks:
 

@@ -1,4 +1,6 @@
 {
+  "run_name": "test",
+
   "seed": 10,
 
   "dataset": "Wine",
