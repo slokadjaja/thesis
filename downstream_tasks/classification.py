@@ -3,7 +3,7 @@
 from aeon.transformations.collection.dictionary_based import SAX
 from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
+from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
 from utils import *
 from model import VAE
 import torch
@@ -24,12 +24,14 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
     f1 = f1_score(y_test, y_pred, average='macro')
     acc = accuracy_score(y_test, y_pred)
     cm = confusion_matrix(y_test, y_pred)
+    p = precision_score(y_test, y_pred, average='macro')
+    r = recall_score(y_test, y_pred, average='macro')
 
     # print(f"Confusion matrix:\n{cm}")
     # print(f"F1 score: {f1:.2f}")
     # print(f"Accuracy: {acc:.2f}")
 
-    return {"f1": f1, "accuracy": acc}
+    return {"f1": f1, "accuracy": acc, "precision": p, "recall": r}
 
 
 def get_sax_encoding(X, sax_params):
@@ -103,11 +105,16 @@ def main():
     all_results = pd.DataFrame.from_records(all_results)
     all_results.to_csv("exp_results.csv")
 
-    for metric in ["accuracy", "f1"]:
+    summary_df = pd.DataFrame()
+    for metric in ["accuracy", "f1", "precision", "recall"]:
         res = all_results.groupby(["dataset", "model"], as_index=False)[metric].mean()
-        res.to_csv(f"exp_results_{metric}.csv")
-        print(metric)
-        print(res)
+        if summary_df.empty:
+            summary_df = res
+        else:
+            summary_df = summary_df.merge(res, on=["dataset", "model"], how="outer")
+
+    print(summary_df)
+    summary_df.to_csv(f"exp_results_summary.csv")
 
 
 if __name__ == "__main__":
