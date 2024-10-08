@@ -188,10 +188,10 @@ def contrastive_loss(batch, top_q, bottom_q, m):
 
 
 def vae_encoding(model, data, patch_length):
-    # assume input data shape: (batch, 1, len)
+    # Assume input data shape: (batch, 1, len)
     data = data.squeeze()
 
-    # pad data according to patch_length
+    # Pad data according to patch_length
     ts_len = data.shape[-1]
     mod = ts_len % patch_length
     data = np.pad(data, ((0, 0), (0, patch_length - mod)), mode='constant', constant_values=0)
