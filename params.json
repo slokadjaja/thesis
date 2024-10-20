@@ -12,14 +12,14 @@
 
   "arch": "fc",
   "patch_len": 16,
-  "n_latent": 100,
-  "alphabet_size": 16,
+  "n_latent": 1,
+  "alphabet_size": 32,
   "temperature": 0.2,
 
   "top_quantile": 3.24,
   "bottom_quantile": 3.24,
   "margin": 20,
-  "alpha": 1,
+  "alpha": 0,
 
   "normalize": false,
   "norm_method": "standard"
