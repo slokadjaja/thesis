@@ -10,7 +10,7 @@ If can't connect due to connection in use, run ```pkill -f gunicorn```
 
 Model is tested using two downstream tasks:
 
-- Time series classification using UCR dataset
+- Time series classification
 - Portfolio hedging
     <details>
     
@@ -33,3 +33,10 @@ Model is tested using two downstream tasks:
     Benchmark: pearson correlation of returns
     
     </details>
+
+### Datasets
+
+- Time series classification is done on the [UCR Dataset](https://www.cs.ucr.edu/%7Eeamonn/time_series_data_2018/) and the [p2s dataset](https://huggingface.co/datasets/AIML-TUDA/P2S) by AIML group of TU Darmstadt
+- Portfolio management task is done on stock return time series of stocks in Nasdaq-100, downloaded from Yahoo Finance. 
+We only use 78 of 100 stocks with available data in time span 01.2011 - 09.2024
+  
