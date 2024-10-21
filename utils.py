@@ -187,25 +187,24 @@ def contrastive_loss(batch, top_q, bottom_q, m):
     return triplet_loss / batch_len
 
 
-def vae_encoding(model, data, patch_length):
+def vae_encoding(model, data: np.ndarray, patch_length: int):
     # Assume input data shape: (batch, 1, len)
-    data = data.squeeze()
+    data = data.squeeze(axis=1)
 
     # Pad data according to patch_length
     ts_len = data.shape[-1]
     mod = ts_len % patch_length
-    data = np.pad(data, ((0, 0), (0, patch_length - mod)), mode='constant', constant_values=0)
-
+    data = np.pad(data, ((0, 0), (0, patch_length - mod)), 'constant')
     data_tensor = torch.Tensor(data)
     encoded_patches = []    # array to store encodings
 
     for i in range(0, data_tensor.shape[-1] - patch_length + 1, patch_length):
         window = data_tensor[:, i:i + patch_length]
-        window = window.unsqueeze(1)  # Shape: (batch, 1, patch_length)
+        window = window.unsqueeze(1)  # Shape after: (batch, 1, patch_length)
         encoded_output = model.encode(window)
 
         # Remove the batch dimension if needed
-        encoded_output = encoded_output.squeeze(1)  # Shape: (encoded_dim)
+        # encoded_output = encoded_output.squeeze(1)
 
         # Store the encoded output
         encoded_patches.append(encoded_output)
@@ -213,5 +212,8 @@ def vae_encoding(model, data, patch_length):
     # Stack all encoded patches into a tensor
     encoded_patches = torch.cat(encoded_patches, dim=1)
     encoded_patches_np = encoded_patches.numpy()
+
+    assert len(encoded_patches_np.shape) == 2
+    assert encoded_patches_np.shape[0] == data.shape[0]
 
     return encoded_patches_np
