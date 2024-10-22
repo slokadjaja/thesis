@@ -22,5 +22,7 @@
   "alpha": 0,
 
   "normalize": false,
-  "norm_method": "standard"
+  "norm_method": "standard",
+
+  "plot_recon": true
 }

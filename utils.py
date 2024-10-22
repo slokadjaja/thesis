@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import pandas as pd
 import torch
 import torch.distributions as dist
 import torch.nn.functional as F
@@ -188,8 +189,9 @@ def contrastive_loss(batch, top_q, bottom_q, m):
 
 
 def vae_encoding(model, data: np.ndarray, patch_length: int):
-    # Assume input data shape: (batch, 1, len)
-    data = data.squeeze(axis=1)
+    # input data shape: (batch, 1, len) or (batch, len)
+    if data.shape[1] == 1:
+        data = data.squeeze(axis=1)
 
     # Pad data according to patch_length
     ts_len = data.shape[-1]
@@ -217,3 +219,43 @@ def vae_encoding(model, data: np.ndarray, patch_length: int):
     assert encoded_patches_np.shape[0] == data.shape[0]
 
     return encoded_patches_np
+
+
+def load_p2s_dataset(split: str):
+    splits = {'train': 'Normal/train-00000-of-00001.parquet', 'test': 'Normal/test-00000-of-00001.parquet'}
+    df = pd.read_parquet("hf://datasets/AIML-TUDA/P2S/" + splits[split],
+                         columns=['dowel_deep_drawing_ow', 'label'])
+    X = np.array([list(row[0]) for row in df.values])
+    y = pd.to_numeric(df.values[:, 1])
+
+    return X, y
+
+
+def plot_reconstructions(model, batch, n_data):
+    figs = []
+
+    for i in range(n_data):
+        sample = torch.unsqueeze(batch[i], 0)
+
+        fig, ax = plt.subplots()
+        ax.plot(sample.squeeze(), label="ground truth")
+        ax.plot(model(sample)[1].detach().numpy().squeeze(), label="reconstruction")
+        ax.legend()
+        plt.title(f"Reconstruction Example {i}")
+
+        figs.append(fig)
+
+    return figs
+
+
+def plot_loss(loss_dict: dict[str, list], dataset: str):
+    fig, ax = plt.subplots()
+
+    for k, v in loss_dict.items():
+        ax.plot(v, alpha=0.6, label=k)
+
+    ax.legend()
+    ax.set(xlabel='Epoch', ylabel='Loss')
+    plt.title(f"Loss Curve ({dataset})")
+
+    return fig

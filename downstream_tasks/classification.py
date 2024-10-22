@@ -52,8 +52,12 @@ def get_vae_encoding(X, vae_params):
 def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, params: dict[str, str | int],
                    model_name: str):
     # Load datasets
-    X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
-    X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
+    if dataset == "p2s":
+        X_train, y_train = load_p2s_dataset("train")
+        X_test, y_test = load_p2s_dataset("test")
+    else:
+        X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
+        X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
 
     # Get encodings
     X_train_emb = enc_function(X_train, params)
@@ -70,7 +74,7 @@ def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable,
 
 def main():
     # Define experiment parameters
-    datasets = ["Wine", "Rock", "Plane", "ArrowHead"]
+    datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s"]
     vae_models = [
         {"model_path": "../baseline_models/fc/model.pt",
          "params_path": "../baseline_models/fc/params.json"},

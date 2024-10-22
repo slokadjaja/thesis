@@ -1,7 +1,8 @@
 import torch
 from torch.utils.data import Dataset
 import numpy as np
-from utils import get_dataset_path
+import pandas as pd
+from utils import get_dataset_path, load_p2s_dataset
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
@@ -20,8 +21,23 @@ class UCRDataset(Dataset):
         """
         self.patch_len = patch_len
 
-        arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
-        x_np = arr[:, 1:]
+        # todo change class name, y different types?
+        if name == "p2s":
+            x_np, y = load_p2s_dataset("train")
+            self.y = torch.from_numpy(y)   # torch.int64
+        elif name == "stocks":
+            prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
+            prices_df.index = pd.to_datetime(prices_df.index)
+
+            # monthly returns
+            returns_df = prices_df.pct_change().dropna().resample('MS').agg(lambda x: (x + 1).prod() - 1)
+
+            x_np = returns_df.T.values
+            self.y = torch.zeros(x_np.shape[0])     # torch.float32
+        else:
+            arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
+            self.y = torch.from_numpy(arr[:, 0])    # torch.float64
+            x_np = arr[:, 1:]
 
         # normalize samples
         if normalize:
@@ -51,7 +67,6 @@ class UCRDataset(Dataset):
             x_np = x_np.reshape((-1, self.patch_len))
 
         self.x = torch.from_numpy(x_np).unsqueeze(1).float()
-        self.y = torch.from_numpy(arr[:, 0])
 
     def __len__(self):
         return len(self.x)
