@@ -5,7 +5,6 @@ from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Para
     plot_reconstructions, plot_loss
 from model import VAE
 import pandas as pd
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import mlflow
 import os
