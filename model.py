@@ -1,6 +1,32 @@
 import torch
 from torch import nn
-from utils import gumbel_softmax, conv_out_len_multiple
+
+
+def sample_gumbel(shape: torch.Size, eps=1e-20) -> torch.Tensor:
+    """ Samples from the Gumbel distribution given a tensor shape and value of epsilon for numerical stability """
+    U = torch.rand(shape)
+    return -torch.log(-torch.log(U + eps) + eps)
+
+
+def gumbel_softmax(logits: torch.Tensor, temperature: float) -> torch.Tensor:
+    """ Adds Gumbel noise to `logits` and applies softmax along the last dimension """
+    input_shape = logits.shape
+    y = logits + sample_gumbel(logits.shape)
+    return torch.nn.functional.softmax(y / temperature, dim=-1).view(input_shape)
+
+
+def conv_out_len_multiple(l_in, arr):
+    # arr: contain tuples (kernel, stride, pad)
+    out_len_arr = [l_in]
+    for a in arr:
+        out_len_arr.append(conv_out_len(out_len_arr[-1], *a))
+
+    return out_len_arr[-1]
+
+
+def conv_out_len(l_in, kernel, stride, pad=0):
+    import math
+    return math.floor(1 + (l_in + 2 * pad - kernel) / stride)
 
 
 class VAE(nn.Module):

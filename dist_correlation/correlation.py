@@ -2,8 +2,8 @@
 
 import pandas as pd
 from dataset import UCRDataset
-from utils import *
-from model import VAE
+import numpy as np
+from utils import get_model_and_hyperparams
 import matplotlib.pyplot as plt
 from tslearn.metrics import dtw
 from scipy.spatial import distance
@@ -12,23 +12,11 @@ from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 
 
-params_path = "../baseline_models/fc/params.json"
-model_path = "../baseline_models/fc/model.pt"
-
-
 def calc_distances():
-    params = Params(params_path)
-
-    dataset, patch_len, alphabet_size, n_latent, temperature, arch, normalize, norm_method = \
-        params.dataset, params.patch_len, params.alphabet_size, params.n_latent, params.temperature, params.arch, \
-        params.normalize, params.norm_method
-
-    train = UCRDataset(dataset, "train", patch_len=patch_len, normalize=normalize, norm_method=norm_method)
+    vae, params = get_model_and_hyperparams("fc")
+    train = UCRDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
+                       norm_method=params.norm_method)
     patches = train.x
-
-    vae = VAE(patch_len, alphabet_size, n_latent, temperature, arch)
-    vae.load_state_dict(torch.load(model_path))
-    vae.eval()
 
     hamming_arr = []
     dtw_arr = []

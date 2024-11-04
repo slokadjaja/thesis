@@ -4,9 +4,7 @@ from aeon.transformations.collection.dictionary_based import SAX
 from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
-from utils import *
-from model import VAE
-import torch
+from utils import get_dataset_path, load_p2s_dataset, vae_encoding, get_model_and_hyperparams
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
@@ -23,9 +21,9 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
     y_pred = clf.predict(X_test)
     f1 = f1_score(y_test, y_pred, average='macro')
     acc = accuracy_score(y_test, y_pred)
-    cm = confusion_matrix(y_test, y_pred)
-    p = precision_score(y_test, y_pred, average='macro')
-    r = recall_score(y_test, y_pred, average='macro')
+    # cm = confusion_matrix(y_test, y_pred)
+    p = precision_score(y_test, y_pred, average='macro', zero_division=0)
+    r = recall_score(y_test, y_pred, average='macro', zero_division=0)
 
     # print(f"Confusion matrix:\n{cm}")
     # print(f"F1 score: {f1:.2f}")
@@ -40,17 +38,13 @@ def get_sax_encoding(X, sax_params):
     return X_sax
 
 
-def get_vae_encoding(X, vae_params):
-    params = Params(vae_params["params_path"])
-    vae = VAE(params.patch_len, params.alphabet_size, params.n_latent, params.arch)
-    vae.load_state_dict(torch.load(vae_params["model_path"]))
-    vae.eval()
+def get_vae_encoding(X, model_name):
+    vae, params = get_model_and_hyperparams(model_name)
     X_vae = vae_encoding(vae, X, params.patch_len)
     return X_vae
 
 
-def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, params: dict[str, str | int],
-                   model_name: str):
+def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, model_name: str, params):
     # Load datasets
     if dataset == "p2s":
         X_train, y_train = load_p2s_dataset("train")
@@ -75,33 +69,25 @@ def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable,
 def main():
     # Define experiment parameters
     datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s"]
-    vae_models = [
-        {"model_path": "../baseline_models/fc/model.pt",
-         "params_path": "../baseline_models/fc/params.json"},
-        {"model_path": "../baseline_models/model_contrastive/model.pt",
-         "params_path": "../baseline_models/model_contrastive/params.json"},
-        {"model_path": "../baseline_models/model_s/model.pt",
-         "params_path": "../baseline_models/model_s/params.json"},
-        {"model_path": "../baseline_models/model_xs/model.pt",
-         "params_path": "../baseline_models/model_xs/params.json"}
-    ]
+    vae_models = ["fc", "model_xs", "xxxs1"]
     sax_params = {"n_segments": 128, "alphabet_size": 8}
     iters_per_setting = 10
 
     # Collect results across experiments
     all_results = []
 
-    total_iters = len(datasets) * len(vae_models)
+    total_iters = len(datasets) * (len(vae_models) + 1)
     with tqdm(total=total_iters) as pbar:
         for dataset in datasets:
             # SAX experiments
-            sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, sax_params, "sax")
+            sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, "sax", params=sax_params)
             all_results = all_results + sax_results
+
+            pbar.update(1)
 
             # VAE experiments
             for vae_model in vae_models:
-                model_name = vae_model['model_path'].split('/')[-2]
-                vae_results = run_experiment(dataset, iters_per_setting, get_vae_encoding, vae_model, model_name)
+                vae_results = run_experiment(dataset, iters_per_setting, get_vae_encoding, vae_model, params=vae_model) # todo a bit ugly?
                 all_results = all_results + vae_results
 
                 pbar.update(1)

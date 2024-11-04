@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import json
 import random
+from model import VAE
 
 
 class Params:
@@ -61,19 +62,6 @@ def get_ts_length(name):
     return len(arr[0]) - 1
 
 
-def sample_gumbel(shape: torch.Size, eps=1e-20) -> torch.Tensor:
-    """ Samples from the Gumbel distribution given a tensor shape and value of epsilon for numerical stability """
-    U = torch.rand(shape)
-    return -torch.log(-torch.log(U + eps) + eps)
-
-
-def gumbel_softmax(logits: torch.Tensor, temperature: float) -> torch.Tensor:
-    """ Adds Gumbel noise to `logits` and applies softmax along the last dimension """
-    input_shape = logits.shape
-    y = logits + sample_gumbel(logits.shape)
-    return torch.nn.functional.softmax(y / temperature, dim=-1).view(input_shape)
-
-
 def cat_kl_div(logits, n_latent, alphabet_size):
     q = dist.Categorical(logits=logits)
     p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0/alphabet_size))
@@ -121,20 +109,6 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len):
 
     plt.tight_layout()
     return fig, ax
-
-
-def conv_out_len_multiple(l_in, arr):
-    # arr: contain tuples (kernel, stride, pad)
-    out_len_arr = [l_in]
-    for a in arr:
-        out_len_arr.append(conv_out_len(out_len_arr[-1], *a))
-
-    return out_len_arr[-1]
-
-
-def conv_out_len(l_in, kernel, stride, pad=0):
-    import math
-    return math.floor(1 + (l_in + 2 * pad - kernel) / stride)
 
 
 def contrastive_loss(batch, top_q, bottom_q, m):
@@ -188,7 +162,8 @@ def contrastive_loss(batch, top_q, bottom_q, m):
     return triplet_loss / batch_len
 
 
-def vae_encoding(model, data: np.ndarray, patch_length: int):
+def vae_encoding(model: VAE, data: np.ndarray, patch_length: int):
+    """Encodes entire time series datasets."""
     # input data shape: (batch, 1, len) or (batch, len)
     if data.shape[1] == 1:
         data = data.squeeze(axis=1)
@@ -232,6 +207,7 @@ def load_p2s_dataset(split: str):
 
 
 def plot_reconstructions(model, batch, n_data):
+    """Plot reconstructions of given batch of patches"""
     figs = []
 
     for i in range(n_data):
@@ -249,6 +225,7 @@ def plot_reconstructions(model, batch, n_data):
 
 
 def plot_loss(loss_dict: dict[str, list], dataset: str):
+    """Plot loss functions given a dictionary with """
     fig, ax = plt.subplots()
 
     for k, v in loss_dict.items():
@@ -259,3 +236,18 @@ def plot_loss(loss_dict: dict[str, list], dataset: str):
     plt.title(f"Loss Curve ({dataset})")
 
     return fig
+
+
+def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
+    """Get a model in eval mode and hyperparameters used to train the model."""
+
+    current_dir = Path(__file__).resolve().parent
+    model_path = current_dir / "baseline_models" / model_name / "model.pt"
+    params_path = current_dir / "baseline_models" / model_name / "params.json"
+
+    params = Params(params_path)
+    vae = VAE(params.patch_len, params.alphabet_size, params.n_latent, params.arch)
+    vae.load_state_dict(torch.load(model_path))
+    vae.eval()
+
+    return vae, params
