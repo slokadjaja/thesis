@@ -4,8 +4,7 @@ from dataset import UCRDataset
 from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, contrastive_loss, \
     plot_reconstructions, plot_loss
 from model import VAE
-import pandas as pd
-from tqdm import tqdm
+´from tqdm import tqdm
 import mlflow
 import os
 from pathlib import Path
