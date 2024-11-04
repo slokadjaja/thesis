@@ -21,13 +21,7 @@ if __name__ == "__main__":
     if params.seed:
         set_seed(params.seed)
 
-    if params.dataset == "p2s":
-        ts_length = 4096
-    elif params.dataset == "stocks":
-        prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
-        ts_length = len(prices_df)
-    else:
-        ts_length = get_ts_length(params.dataset)
+    ts_length = get_ts_length(params.dataset)
 
     if params.patch_len is None:
         input_dim = ts_length

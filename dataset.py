@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
 
-
+# todo change class name
 class UCRDataset(Dataset):
     def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard", pad=False):
         """
@@ -21,9 +21,9 @@ class UCRDataset(Dataset):
         """
         self.patch_len = patch_len
 
-        # todo change class name, y different types?
+        # todo y different types?
         if name == "p2s":
-            x_np, y = load_p2s_dataset("train")
+            x_np, y = load_p2s_dataset(split)
             self.y = torch.from_numpy(y)   # torch.int64
         elif name == "stocks":
             prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)

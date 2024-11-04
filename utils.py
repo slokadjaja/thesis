@@ -58,8 +58,16 @@ def get_dataset_path(name, split):
 
 
 def get_ts_length(name):
-    arr = np.loadtxt(get_dataset_path(name, "train"), delimiter='\t')
-    return len(arr[0]) - 1
+    """Get length of time series in dataset. name is either 'p2s', 'stocks' or one of UCR datasets."""
+    if name == "p2s":
+        ts_length = 4096
+    elif name == "stocks":
+        prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
+        ts_length = len(prices_df)
+    else:
+        arr = np.loadtxt(get_dataset_path(name, "train"), delimiter='\t')
+        ts_length = len(arr[0]) - 1
+    return ts_length
 
 
 def cat_kl_div(logits, n_latent, alphabet_size):
