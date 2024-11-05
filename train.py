@@ -90,15 +90,16 @@ if __name__ == "__main__":
         
         vae.eval()
 
+        Path(f"plots").mkdir(parents=True, exist_ok=True)
         with torch.no_grad():
             # Plot reconstruction examples
             if params.plot_recon:
                 figs = plot_reconstructions(vae, x, 10)
                 for i, fig in enumerate(figs):
                     mlflow.log_figure(fig, f'recon_{i}.png')
-                    fig.savefig(f'recon_{i}.png', dpi=300)
+                    fig.savefig(f'plots/recon_{i}.png', dpi=300)
 
             # Plot loss
             loss_fig = plot_loss({"Total loss": loss_arr, "KL divergence": kl_arr,
                                   "Reconstruction loss": rec_arr, "Contrastive loss": closs_arr}, params.dataset)
-            loss_fig.savefig(f"loss.png", dpi=300)
+            loss_fig.savefig(f"plots/loss.png", dpi=300)
