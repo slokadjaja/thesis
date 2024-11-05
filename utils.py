@@ -128,8 +128,8 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
     Args:
         batch: A list of time series patches, shape: [batch_size, 1, patch_length]
         logits: Logits tensor of shape [batch_size, n_latent, alphabet_size]
-        top_q: distance threshold for a positive pair
-        bottom_q: distance threshold for a negative pair
+        top_q: distance threshold for a negative pair
+        bottom_q: distance threshold for a positive pair
         m: margin for triplet loss
     Returns:
         Average triplet loss over found triplets.
@@ -141,6 +141,7 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
 
     triplet_loss = torch.tensor(0)
     num_triplets = 0
+
     for i in range(batch_len):
         anchor = logits[i]
 
