@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from dataset import UCRDataset
-from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, contrastive_loss
+from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, triplet_loss
 from model import VAE
 from tqdm import tqdm
 import mlflow
@@ -75,7 +75,7 @@ def objective(trial):
                 logits, output = vae(x)
                 rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), torch.squeeze(output, dim=1))
                 kl_div = cat_kl_div(logits, n_latent=params.n_latent, alphabet_size=params.alphabet_size)
-                closs = contrastive_loss(x, params.top_quantile, params.bottom_quantile, params.margin)
+                closs = triplet_loss(x, logits, params.top_quantile, params.bottom_quantile, params.margin)
 
                 loss = rec_loss + params.beta * kl_div + params.alpha * closs
                 epoch_loss += loss.item()
