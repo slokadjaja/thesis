@@ -223,7 +223,7 @@ def plot_reconstructions(model, batch, n_data):
 
         fig, ax = plt.subplots()
         ax.plot(sample.squeeze(), label="ground truth")
-        ax.plot(model(sample)[1].detach().numpy().squeeze(), label="reconstruction")
+        ax.plot(model(sample)[1].detach().cpu().numpy().squeeze(), label="reconstruction")
         ax.legend()
         plt.title(f"Reconstruction Example {i}")
 
