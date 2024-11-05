@@ -95,9 +95,14 @@ def objective(trial):
                 }, step=epoch
             )
 
-            # todo pruning?
+            trial.report(avg_epoch_loss, epoch)
 
-    return avg_epoch_loss  # todo total_loss or last epoch loss?
+            # Handle pruning based on the intermediate value.
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
+
+    # return last epoch loss
+    return avg_epoch_loss
 
 
 if __name__ == "__main__":
