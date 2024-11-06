@@ -25,7 +25,6 @@ if __name__ == "__main__":
     # Load dataset
     train = UCRDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
                        norm_method=params.norm_method)
-    # shape of batch: [batch_size, 1, length]
     train_dataloader = DataLoader(train, batch_size=params.batch_size, shuffle=True)
 
     # Define and train model
@@ -43,7 +42,7 @@ if __name__ == "__main__":
         vae.train()
         for epoch in tqdm(range(params.epoch), desc="Epoch"):
             for x, y in train_dataloader:
-                x = x.to(device)
+                x = x.to(device)    # shape of batch: [batch_size, 1, length]
 
                 logits, output = vae(x)
                 rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), torch.squeeze(output, dim=1))

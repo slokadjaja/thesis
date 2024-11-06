@@ -89,20 +89,21 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def plot_ts_with_encoding(ts, enc, seg_len, enc_len):
+def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
     """
     :param ts: array containing time series
     :param enc: array containing time series encoded as string
     :param seg_len: length of each patch
     :param enc_len: length of encoding for each patch
+    :param plot_size: size of plot
     :return: fig, ax
     """
     # todo: still need to tune some things manually
     #  (starting pos of text, text may not fit between vlines)
 
     fig, ax = plt.subplots()
-    fig.set_dpi(300)
-    fig.set_size_inches(8, 4)
+    #fig.set_dpi(300)
+    fig.set_size_inches(*plot_size)
     trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
 
     ax.plot(ts)
