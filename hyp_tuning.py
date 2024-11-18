@@ -42,8 +42,7 @@ def objective(trial):
         set_seed(params.seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ts_length = get_ts_length(params.dataset)
-    input_dim = ts_length if params.patch_len is None else params.patch_len
+    input_dim = get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
 
     with mlflow.start_run(nested=True):
         # Specify hyperparams to test
