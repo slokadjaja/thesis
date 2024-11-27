@@ -66,24 +66,20 @@ def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable,
     return results
 
 
-def main():
-    # Define experiment parameters
-    datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s"]
-    vae_models = ["fc", "model_xs", "xxxs1"]
-    sax_params = {"n_segments": 128, "alphabet_size": 8}
-    iters_per_setting = 10
-
+def classification(datasets, vae_models, sax_params, iters_per_setting):
     # Collect results across experiments
     all_results = []
 
     total_iters = len(datasets) * (len(vae_models) + 1)
     with tqdm(total=total_iters) as pbar:
         for dataset in datasets:
-            # SAX experiments
-            sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, "sax", params=sax_params)
-            all_results = all_results + sax_results
+            for idx, sax_param in enumerate(sax_params):
+                # SAX experiments
+                sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, f"sax_{idx}",
+                                             params=sax_param)
+                all_results = all_results + sax_results
 
-            pbar.update(1)
+                pbar.update(1)
 
             # VAE experiments
             for vae_model in vae_models:
@@ -108,4 +104,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Define experiment parameters
+    dataset_list = ["Wine", "Rock", "Plane", "ArrowHead", "p2s"]
+    vae_list = ["fc", "model_xs", "xxxs1"]
+    sax_list = [{"n_segments": 128, "alphabet_size": 8}]
+    n_iters = 10
+
+    classification(dataset_list, vae_list, sax_list, n_iters)
