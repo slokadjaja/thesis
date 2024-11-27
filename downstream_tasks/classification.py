@@ -93,7 +93,7 @@ def main():
                 pbar.update(1)
 
     all_results = pd.DataFrame.from_records(all_results)
-    all_results.to_csv("exp_results.csv")
+    all_results.to_csv("classification_results.csv")
 
     summary_df = pd.DataFrame()
     for metric in ["accuracy", "f1", "precision", "recall"]:
@@ -104,7 +104,7 @@ def main():
             summary_df = summary_df.merge(res, on=["dataset", "model"], how="outer")
 
     print(summary_df)
-    summary_df.to_csv(f"exp_results_summary.csv")
+    summary_df.to_csv(f"classification_results_summary.csv")
 
 
 if __name__ == "__main__":

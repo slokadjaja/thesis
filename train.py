@@ -7,7 +7,7 @@ from model import VAE
 from tqdm import tqdm
 import mlflow
 from pathlib import Path
-import shutil
+import json
 
 class Trainer:
     def __init__(self, params):
@@ -31,12 +31,16 @@ class Trainer:
         # Initialize metrics lists
         self.loss_arr, self.rec_arr, self.kl_arr, self.closs_arr = [], [], [], []
 
+        # Directory name to save results
+        self.dir_name = "baseline_models"
+
     def train_one_epoch(self):
         self.model.train()
         epoch_loss, epoch_rec_loss, epoch_kl_div, epoch_closs = 0.0, 0.0, 0.0, 0.0
         for x, y in self.train_dataloader:
             x = x.to(self.device)  # shape of batch: [batch_size, 1, length]
 
+            # Calculate loss
             logits, output = self.model(x)
             rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), torch.squeeze(output, dim=1))
             kl_div = cat_kl_div(logits, n_latent=self.params.n_latent, alphabet_size=self.params.alphabet_size)
@@ -78,20 +82,21 @@ class Trainer:
 
     def save_model_artifacts(self):
         """Save model and architecture details"""
-        model_dir = Path(f"baseline_models/{self.params.run_name}")
+        model_dir = Path(f"{self.dir_name}/{self.params.run_name}")
         model_dir.mkdir(parents=True, exist_ok=True)
 
         torch.save(self.model.state_dict(), model_dir / "model.pt")
         with open(model_dir / "model_summary.txt", "w") as f:
             f.write(repr(self.model))
+        with open(model_dir / "params.json", "w") as f:
+            json.dump(params.dict, f)
 
         mlflow.log_artifact(str(model_dir / "model.pt"))
         mlflow.log_artifact(str(model_dir / "model_summary.txt"))
-        shutil.copy("params.json", model_dir / "params.json")
 
     def plot_results(self):
         """Plot reconstruction examples and training results"""
-        plot_dir = Path(f"baseline_models/{self.params.run_name}/plots")
+        plot_dir = Path(f"{self.dir_name}/{self.params.run_name}/plots")
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot reconstruction examples
