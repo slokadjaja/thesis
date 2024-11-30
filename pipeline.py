@@ -15,7 +15,6 @@ if __name__ == "__main__":
     # todo also test arch
     for dataset, patch_len, alphabet_size in itertools.product(datasets, patch_lens, alphabet_sizes):
         run_name = f"{dataset}_p{patch_len}_a{alphabet_size}"
-        params.run_name = run_name
         run_names.append(run_name)
 
         params.dataset = dataset
@@ -23,7 +22,7 @@ if __name__ == "__main__":
         params.alphabet_size = alphabet_size
 
         params_tuned = tune_hyperparameters(params, run_name=run_name)  # Hyperparameter tuning
-        trainer = Trainer(params_tuned)     # Train model using optimal hyperparameters
+        trainer = Trainer(params_tuned, run_name=run_name)     # Train model using optimal hyperparameters
         trainer.train()
 
     # Test trained models on classification

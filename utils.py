@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import json
+import mlflow
 import random
 from model import VAE
 
@@ -262,3 +263,10 @@ def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
     vae.eval()
 
     return vae, params
+
+def get_or_create_experiment(experiment_name):
+    """Retrieve the ID of an existing MLflow experiment or create a new one if it doesn't exist."""
+    if experiment := mlflow.get_experiment_by_name(experiment_name):
+        return experiment.experiment_id
+    else:
+        return mlflow.create_experiment(experiment_name)

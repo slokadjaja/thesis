@@ -1,6 +1,6 @@
 import json
 from train import Trainer
-from utils import Params
+from utils import Params, get_or_create_experiment
 from tqdm import tqdm
 import mlflow
 import optuna
@@ -23,14 +23,8 @@ def champion_callback(study, frozen_trial):
             print(f"Initial trial {frozen_trial.number} achieved value: {frozen_trial.value}")
 
 
-def get_or_create_experiment(experiment_name):
-    """Retrieve the ID of an existing MLflow experiment or create a new one if it doesn't exist."""
-    if experiment := mlflow.get_experiment_by_name(experiment_name):
-        return experiment.experiment_id
-    else:
-        return mlflow.create_experiment(experiment_name)
-
-def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name="hyperparams_tuning", run_name="test"):
+def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name="hyperparams_tuning",
+                         run_name="test_run"):
     def objective(trial):
         # Suggest hyperparameters
         params.lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True)
@@ -86,4 +80,4 @@ def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name=
 
 if __name__ == "__main__":
     params = Params("params.json")
-    params_tuned = tune_hyperparameters(params,"params_tuned.json")
+    params_tuned = tune_hyperparameters(params, target_path="params_tuned.json")

@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from dataset import UCRDataset
 from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, triplet_loss, \
-    plot_reconstructions, plot_loss
+    plot_reconstructions, plot_loss, get_or_create_experiment
 from model import VAE
 from tqdm import tqdm
 import mlflow
@@ -10,7 +10,10 @@ from pathlib import Path
 import json
 
 class Trainer:
-    def __init__(self, params):
+    def __init__(self, params, experiment_name="train", run_name="test_run"):
+        self.experiment_name = experiment_name
+        self.run_name = run_name
+
         self.params = params
         self.seed = params.seed
 
@@ -70,7 +73,10 @@ class Trainer:
         return mean_loss, mean_rec_loss, mean_kl_div, mean_closs
 
     def train(self):
-        with mlflow.start_run(run_name=self.params.run_name):
+        experiment_id = get_or_create_experiment(self.experiment_name)
+        mlflow.set_experiment(experiment_id=experiment_id)
+
+        with mlflow.start_run(experiment_id=experiment_id, run_name=self.run_name):
             mlflow.log_params(self.params.dict)
             for epoch in tqdm(range(self.params.epoch), desc="Epoch"):
                 loss, rec_loss, kl_div, closs = self.train_one_epoch()
@@ -82,7 +88,7 @@ class Trainer:
 
     def save_model_artifacts(self):
         """Save model and architecture details"""
-        model_dir = Path(f"{self.dir_name}/{self.params.run_name}")
+        model_dir = Path(f"{self.dir_name}/{self.run_name}")
         model_dir.mkdir(parents=True, exist_ok=True)
 
         torch.save(self.model.state_dict(), model_dir / "model.pt")
@@ -96,7 +102,7 @@ class Trainer:
 
     def plot_results(self):
         """Plot reconstruction examples and training results"""
-        plot_dir = Path(f"{self.dir_name}/{self.params.run_name}/plots")
+        plot_dir = Path(f"{self.dir_name}/{self.run_name}/plots")
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot reconstruction examples
