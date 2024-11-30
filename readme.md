@@ -8,6 +8,10 @@ variational autoencoders (VAEs) with categorical latent variables + Gumbel-softm
 MLFlow is used to log metrics, parameters and artefacts. To view runs in UI, run: ```mlflow server --host 127.0.0.1 --port 8080 ```.
 If can't connect due to connection in use, run ```pkill -f gunicorn```
 
+It is also possible to log MLFlow runs in Azure ML. To do this, create an ```.env``` file in the root directory, and store
+the environment variables ```AZURE_TENANT_ID```, ```AZURE_CLIENT_ID```, ```AZURE_CLIENT_SECRET``` of your service principal, and 
+the ```TRACKING_URI``` that points to your Azure ML workspace.
+
 ### Downstream tasks
 Model is tested using two downstream tasks:
 

@@ -4,8 +4,13 @@ from utils import Params, get_or_create_experiment
 from tqdm import tqdm
 import mlflow
 import optuna
+import os
+
+from dotenv import load_dotenv
+from azure.identity import ClientSecretCredential
 
 optuna.logging.set_verbosity(optuna.logging.ERROR)
+
 
 def champion_callback(study, frozen_trial):
     """Logging callback that will report when a new trial iteration improves upon existing best trial values."""
@@ -24,13 +29,19 @@ def champion_callback(study, frozen_trial):
 
 
 def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name="hyperparams_tuning",
-                         run_name="test_run"):
+                         run_name="test_run", azure=True):
+    if azure:
+        load_dotenv()
+        credential = ClientSecretCredential(os.environ["AZURE_TENANT_ID"], os.environ["AZURE_CLIENT_ID"],
+                                            os.environ["AZURE_CLIENT_SECRET"])
+        mlflow.set_tracking_uri(os.environ["TRACKING_URI"])
+
     def objective(trial):
         # Suggest hyperparameters
         params.lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True)
         params.batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
         params.temperature = trial.suggest_float('temperature', 0.2, 1.5, step=0.1)
-        
+
         trainer = Trainer(params)
         with mlflow.start_run(nested=True):
             mlflow.log_params(params.dict)
@@ -42,7 +53,7 @@ def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name=
                                     "contrastive loss": closs}, step=epoch)
 
                 total_loss += loss
-                avg_loss = total_loss/(epoch+1)     # Report average loss per epoch so far
+                avg_loss = total_loss / (epoch + 1)  # Report average loss per epoch so far
 
                 # todo use validation loss?
 
@@ -50,7 +61,7 @@ def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name=
                 trial.report(avg_loss, epoch)
                 if trial.should_prune():
                     raise optuna.TrialPruned()
-        
+
         return avg_loss
 
     experiment_id = get_or_create_experiment(experiment_name)
@@ -71,7 +82,7 @@ def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name=
 
         mlflow.log_params(best_params)
         mlflow.log_metric("best_loss", best_loss)
-        
+
         print("Best hyperparameters:", best_params)
         print(f"Best final loss: {best_loss}")
 

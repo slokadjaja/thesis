@@ -8,9 +8,20 @@ from tqdm import tqdm
 import mlflow
 from pathlib import Path
 import json
+import os
+
+from dotenv import load_dotenv
+from azure.identity import ClientSecretCredential
+
 
 class Trainer:
-    def __init__(self, params, experiment_name="train", run_name="test_run"):
+    def __init__(self, params, experiment_name="train", run_name="test_run", azure=True):
+        if azure:
+            load_dotenv()
+            credential = ClientSecretCredential(os.environ["AZURE_TENANT_ID"], os.environ["AZURE_CLIENT_ID"],
+                                                os.environ["AZURE_CLIENT_SECRET"])
+            mlflow.set_tracking_uri(os.environ["TRACKING_URI"])
+
         self.experiment_name = experiment_name
         self.run_name = run_name
 

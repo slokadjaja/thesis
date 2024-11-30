@@ -5,3 +5,4 @@ mlartifacts/
 test*.py
 .idea/
 baseline_models/
+.env
