@@ -2,16 +2,16 @@ import torch
 from torch import nn
 
 
-def sample_gumbel(shape: torch.Size, eps=1e-20) -> torch.Tensor:
+def sample_gumbel(shape: torch.Size, device: torch.device, eps=1e-20) -> torch.Tensor:
     """ Samples from the Gumbel distribution given a tensor shape and value of epsilon for numerical stability """
-    U = torch.rand(shape)
+    U = torch.rand(shape, device=device)
     return -torch.log(-torch.log(U + eps) + eps)
 
 
-def gumbel_softmax(logits: torch.Tensor, temperature: float) -> torch.Tensor:
+def gumbel_softmax(logits: torch.Tensor, temperature: float, device: torch.device) -> torch.Tensor:
     """ Adds Gumbel noise to `logits` and applies softmax along the last dimension """
     input_shape = logits.shape
-    y = logits + sample_gumbel(logits.shape)
+    y = logits + sample_gumbel(logits.shape, device=device)
     return torch.nn.functional.softmax(y / temperature, dim=-1).view(input_shape)
 
 
@@ -30,7 +30,7 @@ def conv_out_len(l_in, kernel, stride, pad=0):
 
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, alphabet_size=2, n_latent=10, temperature=1, model="fc"):
+    def __init__(self, input_dim, alphabet_size=2, n_latent=10, temperature=1, model="fc", device=torch.device("cpu")):
         super().__init__()
 
         self.input_dim = input_dim
@@ -38,6 +38,7 @@ class VAE(nn.Module):
         self.n_latent = n_latent
         self.temperature = temperature
         self.model = model
+        self.device = device
 
         fc_encoder = nn.Sequential(
             nn.Dropout(0.1),
@@ -108,7 +109,7 @@ class VAE(nn.Module):
 
     def forward(self, x):
         logits = self.encoder(x).view(-1, self.n_latent, self.alphabet_size)
-        z = gumbel_softmax(logits, self.temperature)
+        z = gumbel_softmax(logits, self.temperature, self.device)
         output = self.decoder(z)
         return logits, output
 

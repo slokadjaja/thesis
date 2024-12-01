@@ -33,8 +33,8 @@ class Trainer:
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.input_dim = get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
-        self.model = VAE(self.input_dim, params.alphabet_size, params.n_latent, params.temperature, params.arch).to(
-            self.device)
+        self.model = VAE(self.input_dim, params.alphabet_size, params.n_latent, params.temperature, params.arch,
+                         self.device).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=params.lr)
 
         # Prepare dataloader
