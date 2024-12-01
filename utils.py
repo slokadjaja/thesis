@@ -85,7 +85,7 @@ def reconstruction_loss(x_true, x_out):
 def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():   # GPU operations have separate seed
+    if torch.cuda.is_available():  # GPU operations have separate seed
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
@@ -103,13 +103,13 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
     #  (starting pos of text, text may not fit between vlines)
 
     fig, ax = plt.subplots()
-    #fig.set_dpi(300)
+    # fig.set_dpi(300)
     fig.set_size_inches(*plot_size)
     trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
 
     ax.plot(ts)
 
-    for i in range((len(ts) // seg_len) + 1):   # loop from 0 to number of segments
+    for i in range((len(ts) // seg_len) + 1):  # loop from 0 to number of segments
         seg_x = i * seg_len
         seg_enc = enc[i * enc_len:(1 + i) * enc_len]
         seg_enc = [str(x) for x in seg_enc]
@@ -149,14 +149,16 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
 
         # todo how to pick pos and neg samples? deterministic / multiple samples?
         # sample positive and negative patches
-        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data)) != i))[0]
+        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data),
+                                                                                 device=pair_distance.device) != i))[0]
         if torch.numel(pos_indices) != 0:
             pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
             pos_sample = logits[pos_indices[pos_rand]]
         else:
             continue
 
-        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data)) != i))[0]
+        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data),
+                                                                              device=pair_distance.device) != i))[0]
         if torch.numel(neg_indices) != 0:
             neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
             neg_sample = logits[neg_indices[neg_rand]]
@@ -181,7 +183,7 @@ def vae_encoding(model: VAE, data: np.ndarray, patch_length: int):
     mod = ts_len % patch_length
     data = np.pad(data, ((0, 0), (0, patch_length - mod)), 'constant')
     data_tensor = torch.Tensor(data)
-    encoded_patches = []    # array to store encodings
+    encoded_patches = []  # array to store encodings
 
     for i in range(0, data_tensor.shape[-1] - patch_length + 1, patch_length):
         window = data_tensor[:, i:i + patch_length]
@@ -263,6 +265,7 @@ def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
     vae.eval()
 
     return vae, params
+
 
 def get_or_create_experiment(experiment_name):
     """Retrieve the ID of an existing MLflow experiment or create a new one if it doesn't exist."""
