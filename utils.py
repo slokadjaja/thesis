@@ -73,7 +73,7 @@ def get_ts_length(name):
 
 def cat_kl_div(logits, n_latent, alphabet_size):
     q = dist.Categorical(logits=logits)
-    p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0/alphabet_size))
+    p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0 / alphabet_size, device=logits.device))
     kl = dist.kl.kl_divergence(q, p)
     return torch.mean(torch.sum(kl, dim=1))
 
