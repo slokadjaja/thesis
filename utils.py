@@ -141,7 +141,7 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
     batch_len = data.shape[0]
     pair_distance = torch.cdist(data, data, p=2)
 
-    triplet_loss = torch.tensor(0)
+    triplet_loss = torch.tensor(0, device=batch.device)
     num_triplets = 0
 
     for i in range(batch_len):
@@ -151,14 +151,14 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
         # sample positive and negative patches
         pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data)) != i))[0]
         if torch.numel(pos_indices) != 0:
-            pos_rand = random.randint(0, len(pos_indices) - 1)
+            pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
             pos_sample = logits[pos_indices[pos_rand]]
         else:
             continue
 
         neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data)) != i))[0]
         if torch.numel(neg_indices) != 0:
-            neg_rand = random.randint(0, len(neg_indices) - 1)
+            neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
             neg_sample = logits[neg_indices[neg_rand]]
         else:
             continue
