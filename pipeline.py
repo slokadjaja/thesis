@@ -11,7 +11,7 @@ if __name__ == "__main__":
     patch_lens = [16, 32, 128]
     alphabet_sizes = [32, 48]
     use_azure = True
-    hyp_tuning_trials = 3
+    hyp_tuning_trials = 10
     cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB"]
     sax_params = [{"n_segments": 128, "alphabet_size": 32}, {"n_segments": 128, "alphabet_size": 48}]
     cls_trials = 10
