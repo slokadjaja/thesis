@@ -5,12 +5,10 @@ from tqdm import tqdm
 import mlflow
 import optuna
 import os
-import logging
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 
 optuna.logging.set_verbosity(optuna.logging.ERROR)
-logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 def champion_callback(study, frozen_trial):
     """Logging callback that will report when a new trial iteration improves upon existing best trial values."""

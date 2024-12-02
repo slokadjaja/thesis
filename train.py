@@ -9,11 +9,10 @@ import mlflow
 from pathlib import Path
 import json
 import os
-import logging
+
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 
-logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 class Trainer:
     def __init__(self, params, experiment_name="train", run_name="test_run", azure=True):
