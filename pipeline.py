@@ -15,7 +15,8 @@ if __name__ == "__main__":
 
     # todo also test arch
     for dataset, patch_len, alphabet_size in tqdm(itertools.product(datasets, patch_lens, alphabet_sizes),
-                                              total=len(datasets) * len(patch_lens) * len(alphabet_sizes)):
+                                                  total=len(datasets) * len(patch_lens) * len(alphabet_sizes),
+                                                  desc="Pipeline progress"):
         run_name = f"{dataset}_p{patch_len}_a{alphabet_size}"
         print(f"Starting run: {run_name}")
 
@@ -29,7 +30,7 @@ if __name__ == "__main__":
         params_tuned = tune_hyperparameters(params, run_name=run_name)  # Hyperparameter tuning
 
         print("Hyperparameters tuned, start training using best hyperparameters")
-        trainer = Trainer(params_tuned, run_name=run_name)     # Train model using optimal hyperparameters
+        trainer = Trainer(params_tuned, run_name=run_name)  # Train model using optimal hyperparameters
         trainer.train()
 
     print("Start classification")

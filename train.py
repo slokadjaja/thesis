@@ -9,10 +9,11 @@ import mlflow
 from pathlib import Path
 import json
 import os
-
+import logging
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 
+logging.getLogger("mlflow").setLevel(logging.ERROR)
 
 class Trainer:
     def __init__(self, params, experiment_name="train", run_name="test_run", azure=True):
@@ -106,7 +107,7 @@ class Trainer:
         with open(model_dir / "model_summary.txt", "w") as f:
             f.write(repr(self.model))
         with open(model_dir / "params.json", "w") as f:
-            json.dump(params.dict, f)
+            json.dump(self.params.dict, f)
 
         mlflow.log_artifact(str(model_dir / "model.pt"))
         mlflow.log_artifact(str(model_dir / "model_summary.txt"))

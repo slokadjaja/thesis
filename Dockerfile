@@ -10,4 +10,6 @@ WORKDIR /app/code
 RUN pip install --no-cache-dir -r requirements.txt
 RUN chmod +x /app/code/pipeline.sh
 
-CMD ["/app/code/pipeline.sh"]
+COPY .env /app/code/.env
+
+CMD ["bash"]
