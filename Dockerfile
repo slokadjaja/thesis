@@ -8,6 +8,6 @@ RUN git clone https://github.com/slokadjaja/thesis.git /app/code
 WORKDIR /app/code
 
 RUN pip install --no-cache-dir -r requirements.txt
-RUN chmod +x /app/code/start_training.sh
+RUN chmod +x /app/code/pipeline.sh
 
-CMD ["/app/code/start_training.sh"]
+CMD ["/app/code/pipeline.sh"]
