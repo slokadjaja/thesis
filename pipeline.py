@@ -24,7 +24,7 @@ if __name__ == "__main__":
                                                   total=len(train_datasets) * len(patch_lens) * len(alphabet_sizes),
                                                   desc="Pipeline progress"):
         run_name = f"{dataset}_p{patch_len}_a{alphabet_size}"
-        print(f"Starting run: {run_name}")
+        print(f"\nStarting run: {run_name}")
 
         run_names.append(run_name)
 
