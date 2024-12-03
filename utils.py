@@ -224,7 +224,7 @@ def plot_reconstructions(model, batch, n_data):
         sample = torch.unsqueeze(batch[i], 0)
 
         fig, ax = plt.subplots()
-        ax.plot(sample.squeeze(), label="ground truth")
+        ax.plot(sample.detach().cpu().numpy().squeeze(), label="ground truth")
         ax.plot(model(sample)[1].detach().cpu().numpy().squeeze(), label="reconstruction")
         ax.legend()
         plt.title(f"Reconstruction Example {i}")
