@@ -32,12 +32,12 @@ if __name__ == "__main__":
         params.patch_len = patch_len
         params.alphabet_size = alphabet_size
 
-        print("Start tuning hyperparameters")
+        print("\nStart tuning hyperparameters")
         params_tuned = tune_hyperparameters(params, run_name=run_name, azure=use_azure, n_trials=hyp_tuning_trials)
 
-        print("Hyperparameters tuned, start training using best hyperparameters")
+        print("\nHyperparameters tuned, start training using best hyperparameters")
         trainer = Trainer(params_tuned, run_name=run_name, azure=use_azure)
         trainer.train()
 
-    print("Start classification")
+    print("\nStart classification")
     classification(datasets=cls_datasets, vae_models=run_names, sax_params=sax_params, iters_per_setting=cls_trials)
