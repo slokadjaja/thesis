@@ -4,10 +4,12 @@ from aeon.transformations.collection.dictionary_based import SAX
 from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
+from sklearn.preprocessing import StandardScaler
 from utils import get_dataset_path, load_p2s_dataset, vae_encoding, get_model_and_hyperparams
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
+import numpy as np
 
 
 # todo how to compare SAX and VAE if embeddings have different lengths?
@@ -52,6 +54,11 @@ def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable,
     else:
         X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
         X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
+
+    # todo adjust to models
+    scaler = StandardScaler()
+    X_train = np.expand_dims(scaler.fit_transform(X_train.squeeze()), axis=1)
+    X_test = np.expand_dims(scaler.transform(X_test.squeeze()), axis=1)
 
     # Get encodings
     X_train_emb = enc_function(X_train, params)
