@@ -1,0 +1,26 @@
+{
+  "seed": 10,
+
+  "dataset": "Wine",
+
+  "epoch": 200,
+  "batch_size": 16,
+  "lr": 0.0005906033840787838,
+  "beta": 0.01,
+
+  "arch": "fc",
+  "patch_len": 16,
+  "n_latent": 1,
+  "alphabet_size": 32,
+  "temperature": 1.3,
+
+  "top_quantile": 3.24,
+  "bottom_quantile": 3.24,
+  "margin": 20,
+  "alpha": 0,
+
+  "normalize": true,
+  "norm_method": "standard",
+
+  "plot_recon": true
+}
