@@ -9,7 +9,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 # todo change class name
 class UCRDataset(Dataset):
-    def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard", pad=False):
+    def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard", pad=True,
+                 overlap=False, stride=1):
         """
         :param name: dataset name from ucr collection
         :param split: either "test" or "train"
@@ -21,10 +22,9 @@ class UCRDataset(Dataset):
         """
         self.patch_len = patch_len
 
-        # todo y different types?
         if name == "p2s":
             x_np, y = load_p2s_dataset(split)
-            self.y = torch.from_numpy(y)   # torch.int64
+            self.y = torch.from_numpy(y).to(torch.int32)
         elif name == "stocks":
             prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
             prices_df.index = pd.to_datetime(prices_df.index)
@@ -33,10 +33,10 @@ class UCRDataset(Dataset):
             returns_df = prices_df.pct_change().dropna().resample('MS').agg(lambda x: (x + 1).prod() - 1)
 
             x_np = returns_df.T.values
-            self.y = torch.zeros(x_np.shape[0])     # torch.float32
+            self.y = torch.zeros(x_np.shape[0], dtype=torch.int32)
         else:
             arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
-            self.y = torch.from_numpy(arr[:, 0])    # torch.float64
+            self.y = torch.from_numpy(arr[:, 0]).to(torch.int32)
             x_np = arr[:, 1:]
 
         # normalize samples
@@ -54,17 +54,30 @@ class UCRDataset(Dataset):
 
         # split ts into patches
         if self.patch_len is not None:
-            mod = x_np.shape[1] % self.patch_len
-            if mod != 0:    # if time series length is not divisible by patch_len,
-                if pad:
-                    # pad with zeros
-                    x_np = np.pad(x_np, ((0, 0), (0, patch_len-mod)), mode='constant', constant_values=0)
-                else:
-                    # remove excess values
-                    x_np = x_np[:, :-mod]
+            if not overlap:
+                mod = x_np.shape[1] % self.patch_len
+                if mod != 0:    # if time series length is not divisible by patch_len,
+                    if pad:
+                        # pad with zeros
+                        x_np = np.pad(x_np, ((0, 0), (0, patch_len-mod)), mode='constant', constant_values=0)
+                    else:
+                        # remove excess values
+                        x_np = x_np[:, :-mod]
+                # only self.x is split into patches
+                x_np = x_np.reshape((-1, self.patch_len))
+            else:   # Patches should overlap
+                # Padding
+                remainder = (x_np.shape[1] - self.patch_len) % stride
+                if remainder != 0:
+                    pad_len = stride - remainder
+                    x_np = np.pad(x_np, ((0, 0), (0, pad_len)), mode='constant', constant_values=0)
 
-            # only self.x is split into patches
-            x_np = x_np.reshape((-1, self.patch_len))
+                patches = []
+                for ts in x_np:  # Iterate through each time series
+                    # Extract patches using sliding window
+                    ts_patches = [list(ts[i:i + patch_len]) for i in range(0, len(ts) - patch_len + 1, stride)]
+                    patches = patches + ts_patches
+                x_np = np.array(patches)
 
         self.x = torch.from_numpy(x_np).unsqueeze(1).float()
 
@@ -73,6 +86,7 @@ class UCRDataset(Dataset):
 
     def __getitem__(self, item):
         if self.patch_len is not None:
-            return self.x[item], 0
+            series_idx = item // (self.x.shape[0] // len(self.y))
+            return self.x[item], self.y[series_idx]
         else:
             return self.x[item], self.y[item]
