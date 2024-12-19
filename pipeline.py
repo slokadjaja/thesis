@@ -8,18 +8,22 @@ import itertools
 if __name__ == "__main__":
     # todo set pipeline params externally?
     train_datasets = ["Wine", "ArrowHead", "p2s"]
+
+    # Can also be found using optuna to save time
     patch_lens = [16, 32, 128]
     alphabet_sizes = [32, 48]
+
     use_azure = True
     hyp_tuning_trials = 10
     cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB"]
-    sax_params = [{"n_segments": 128, "alphabet_size": 32}, {"n_segments": 128, "alphabet_size": 48}]
+    sax_params = [{"n_segments": 16, "alphabet_size": 32}, {"n_segments": 16, "alphabet_size": 48}]
     cls_trials = 10
 
     params = Params("params.json")
     run_names = []
 
     # todo also test arch, triplet loss
+    # todo parallel
     for dataset, patch_len, alphabet_size in tqdm(itertools.product(train_datasets, patch_lens, alphabet_sizes),
                                                   total=len(train_datasets) * len(patch_lens) * len(alphabet_sizes),
                                                   desc="Pipeline progress"):
