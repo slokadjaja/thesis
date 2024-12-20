@@ -261,7 +261,9 @@ def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
 
     vae = VAE(input_dim=input_dim, alphabet_size=params.alphabet_size, n_latent=params.n_latent,
               temperature=params.temperature, model=params.arch)
-    vae.load_state_dict(torch.load(model_path))
+    vae.load_state_dict(
+        torch.load(model_path, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    )
     vae.eval()
 
     return vae, params
