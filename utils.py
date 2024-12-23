@@ -251,8 +251,8 @@ def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
     """Get a model in eval mode and hyperparameters used to train the model."""
 
     current_dir = Path(__file__).resolve().parent
-    model_path = current_dir / "baseline_models" / model_name / "model.pt"
-    params_path = current_dir / "baseline_models" / model_name / "params.json"
+    model_path = current_dir / "models" / model_name / "model.pt"
+    params_path = current_dir / "models" / model_name / "params.json"
 
     params = Params(params_path)
     ts_length = get_ts_length(params.dataset)

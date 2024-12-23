@@ -4,5 +4,5 @@ mlruns/
 mlartifacts/
 test*.py
 .idea/
-baseline_models/
+models/
 .env

@@ -46,7 +46,7 @@ class Trainer:
         self.loss_arr, self.rec_arr, self.kl_arr, self.closs_arr = [], [], [], []
 
         # Directory name to save results
-        self.dir_name = "baseline_models"
+        self.dir_name = "models"
 
     def train_one_epoch(self):
         self.model.train()
