@@ -6,7 +6,6 @@ from tqdm import tqdm
 import itertools
 
 if __name__ == "__main__":
-    # todo set pipeline params externally?
     train_datasets = ["Wine", "ArrowHead", "p2s"]
 
     # Can also be found using optuna to save time
@@ -21,8 +20,6 @@ if __name__ == "__main__":
     params = Params("params.json")
     run_names = []
 
-    # todo also test arch, triplet loss
-    # todo parallel
     for dataset, patch_len, alphabet_size in tqdm(itertools.product(train_datasets, patch_lens, alphabet_sizes),
                                                   total=len(train_datasets) * len(patch_lens) * len(alphabet_sizes),
                                                   desc="Pipeline progress"):

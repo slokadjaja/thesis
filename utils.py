@@ -147,7 +147,6 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
     for i in range(batch_len):
         anchor = logits[i]
 
-        # todo how to pick pos and neg samples? deterministic / multiple samples?
         # sample positive and negative patches
         pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data),
                                                                                  device=pair_distance.device) != i))[0]

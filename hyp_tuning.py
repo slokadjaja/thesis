@@ -53,8 +53,6 @@ def tune_hyperparameters(params, target_path=None, n_trials=10, experiment_name=
                 total_loss += loss
                 avg_loss = total_loss / (epoch + 1)  # Report average loss per epoch so far
 
-                # todo use validation loss?
-
                 # Handle pruning based on the intermediate value.
                 trial.report(avg_loss, epoch)
                 if trial.should_prune():
