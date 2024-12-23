@@ -110,6 +110,7 @@ class Trainer:
 
         mlflow.log_artifact(str(model_dir / "model.pt"))
         mlflow.log_artifact(str(model_dir / "model_summary.txt"))
+        mlflow.log_artifact(str(model_dir / "params.json"))
 
     def plot_results(self):
         """Plot reconstruction examples and training results"""
