@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from dataset import UCRDataset
+from dataset import TSDataset
 from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, triplet_loss, \
     plot_reconstructions, plot_loss, get_or_create_experiment
 from model import VAE
@@ -38,7 +38,7 @@ class Trainer:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=params.lr)
 
         # Prepare dataloader
-        train_dataset = UCRDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
+        train_dataset = TSDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
                                    norm_method=params.norm_method)
         self.train_dataloader = DataLoader(train_dataset, batch_size=params.batch_size, shuffle=True)
 

@@ -7,8 +7,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
 
-# todo change class name
-class UCRDataset(Dataset):
+class TSDataset(Dataset):
     def __init__(self, name: str, split: str, patch_len=None, normalize=False, norm_method="standard", pad=True,
                  overlap=False, stride=1):
         """

@@ -16,9 +16,6 @@ import os
 import mlflow
 
 
-# todo how to compare SAX and VAE if embeddings have different lengths?
-#   SAX: n_segments, VAE: #patches * #symbols_per_patch -> dataset specific
-
 def decision_tree_classifier(X_train, y_train, X_test, y_test):
     # Fit decision tree classifier
     clf = DecisionTreeClassifier().fit(X_train, y_train)

@@ -1,7 +1,7 @@
 """ Analyze relation between patch distance (dtw or L2 norm) and encoding distance (hamming distance) """
 
 import pandas as pd
-from dataset import UCRDataset
+from dataset import TSDataset
 import numpy as np
 from utils import get_model_and_hyperparams
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 def calc_distances():
     vae, params = get_model_and_hyperparams("fc")
-    train = UCRDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
+    train = TSDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
                        norm_method=params.norm_method)
     patches = train.x
 
