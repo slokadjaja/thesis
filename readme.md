@@ -14,6 +14,9 @@ It is also possible to log MLFlow runs in Azure ML. To do this, create an ```.en
 the environment variables ```AZURE_TENANT_ID```, ```AZURE_CLIENT_ID```, ```AZURE_CLIENT_SECRET``` of your service principal, and 
 the ```TRACKING_URI``` that points to your Azure ML workspace.
 
+To query runs in Azure ML using python SDK and get metrics and artefacts, 
+refer to [microsoft learn](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-track-experiments-mlflow?view=azureml-api-2&source=recommendations)
+
 ### Downstream tasks
 Model is tested using two downstream tasks:
 
