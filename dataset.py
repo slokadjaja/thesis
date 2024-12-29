@@ -5,6 +5,7 @@ import pandas as pd
 from utils import get_dataset_path, load_p2s_dataset
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
+
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
 
 class TSDataset(Dataset):
@@ -55,16 +56,16 @@ class TSDataset(Dataset):
         if self.patch_len is not None:
             if not overlap:
                 mod = x_np.shape[1] % self.patch_len
-                if mod != 0:    # if time series length is not divisible by patch_len,
+                if mod != 0:  # if time series length is not divisible by patch_len,
                     if pad:
                         # pad with zeros
-                        x_np = np.pad(x_np, ((0, 0), (0, patch_len-mod)), mode='constant', constant_values=0)
+                        x_np = np.pad(x_np, ((0, 0), (0, self.patch_len - mod)), mode='constant', constant_values=0)
                     else:
                         # remove excess values
                         x_np = x_np[:, :-mod]
                 # only self.x is split into patches
                 x_np = x_np.reshape((-1, self.patch_len))
-            else:   # Patches should overlap
+            else:  # Patches should overlap
                 # Padding
                 remainder = (x_np.shape[1] - self.patch_len) % stride
                 if remainder != 0:
@@ -74,7 +75,8 @@ class TSDataset(Dataset):
                 patches = []
                 for ts in x_np:  # Iterate through each time series
                     # Extract patches using sliding window
-                    ts_patches = [list(ts[i:i + patch_len]) for i in range(0, len(ts) - patch_len + 1, stride)]
+                    ts_patches = [list(ts[i:i + self.patch_len]) for i in
+                                  range(0, len(ts) - self.patch_len + 1, stride)]
                     patches = patches + ts_patches
                 x_np = np.array(patches)
 
