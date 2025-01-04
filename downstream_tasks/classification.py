@@ -28,11 +28,14 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
     p = precision_score(y_test, y_pred, average='macro', zero_division=0)
     r = recall_score(y_test, y_pred, average='macro', zero_division=0)
 
+    y_pred_train = clf.predict(X_train)
+    train_acc = accuracy_score(y_train, y_pred_train)
+
     # print(f"Confusion matrix:\n{cm}")
     # print(f"F1 score: {f1:.2f}")
     # print(f"Accuracy: {acc:.2f}")
 
-    return {"f1": f1, "accuracy": acc, "precision": p, "recall": r}
+    return {"train_accuracy": train_acc, "accuracy": acc, "f1": f1, "precision": p, "recall": r}
 
 
 def get_sax_encoding(X, sax_params):
@@ -144,7 +147,7 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
 if __name__ == "__main__":
     # Define experiment parameters
     cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB"]
-    vae_list = ["fc", "ArrowHead_p16_a32", "Wine_p16_a32"]
+    vae_list = ["ArrowHead_p16_a32", "Wine_p16_a32", "p2s_p128_a32"]
     sax_params = [{"n_segments": 16, "alphabet_size": 32}, {"n_segments": 16, "alphabet_size": 48}]
     n_iters = 10
 
