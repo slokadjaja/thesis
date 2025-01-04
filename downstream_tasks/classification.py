@@ -120,7 +120,7 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
     all_results.to_csv("classification_results.csv")
 
     summary_df = pd.DataFrame()
-    for metric in ["accuracy", "f1", "precision", "recall"]:
+    for metric in ["train_accuracy", "accuracy", "f1", "precision", "recall"]:
         res = all_results.groupby(["dataset", "model"], as_index=False)[metric].mean()
         if summary_df.empty:
             summary_df = res
@@ -151,4 +151,4 @@ if __name__ == "__main__":
     sax_params = [{"n_segments": 16, "alphabet_size": 32}, {"n_segments": 16, "alphabet_size": 48}]
     n_iters = 10
 
-    classification(cls_datasets, vae_list, sax_params, n_iters)
+    classification(cls_datasets, vae_list, sax_params, n_iters, azure=False)

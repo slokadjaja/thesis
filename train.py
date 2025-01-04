@@ -141,5 +141,5 @@ class Trainer:
 
 if __name__ == "__main__":
     params = Params("params.json")
-    trainer = Trainer(params)
+    trainer = Trainer(params, azure=False)
     trainer.train()
