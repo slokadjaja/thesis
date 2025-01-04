@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from utils import get_dataset_path, load_p2s_dataset
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+from pathlib import Path
 
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
@@ -39,7 +40,9 @@ class TSDataset(Dataset):
                 x_np, y = load_p2s_dataset(split)
                 y_tensor = torch.from_numpy(y).to(torch.int32)
             elif name == "stocks":
-                prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
+                current_dir = Path(__file__).resolve().parent
+                data_dir = current_dir / "datasets/stocks/nasdaq_prices.csv"
+                prices_df = pd.read_csv(data_dir, index_col=0)
                 prices_df.index = pd.to_datetime(prices_df.index)
 
                 # monthly returns

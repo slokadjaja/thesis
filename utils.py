@@ -63,7 +63,9 @@ def get_ts_length(name):
     if name == "p2s":
         ts_length = 4096
     elif name == "stocks":
-        prices_df = pd.read_csv("datasets/stocks/nasdaq_prices.csv", index_col=0)
+        current_dir = Path(__file__).resolve().parent
+        data_dir = current_dir / "datasets/stocks/nasdaq_prices.csv"
+        prices_df = pd.read_csv(data_dir, index_col=0)
         ts_length = len(prices_df)
     else:
         arr = np.loadtxt(get_dataset_path(name, "train"), delimiter='\t')
