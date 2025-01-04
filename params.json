@@ -13,6 +13,7 @@
   "n_latent": 1,
   "alphabet_size": 32,
   "temperature": 0.2,
+  "annealing": false,
 
   "top_quantile": 3.24,
   "bottom_quantile": 3.24,

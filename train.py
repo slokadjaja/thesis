@@ -13,6 +13,12 @@ import os
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 
+def temp_exp_annealing(initial_temp, epoch, decay_rate=0.99):
+    """
+    Exponentially decay temperature using a decay rate.
+    """
+    return initial_temp * (decay_rate ** epoch)
+
 
 class Trainer:
     def __init__(self, params, experiment_name="train", run_name="test_run", azure=True):
@@ -91,6 +97,10 @@ class Trainer:
             mlflow.log_params(self.params.dict)
             for epoch in tqdm(range(self.params.epoch), desc="Epoch"):
                 loss, rec_loss, kl_div, closs = self.train_one_epoch()
+                if self.params.annealing:
+                    current_temp = temp_exp_annealing(self.params.temperature, epoch)
+                    self.model.temperature = current_temp
+
                 mlflow.log_metrics({"total loss": loss, "reconstruction loss": rec_loss, "kl divergence": kl_div,
                                     "contrastive loss": closs}, step=epoch)
 
