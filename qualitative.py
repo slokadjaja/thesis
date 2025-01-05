@@ -70,6 +70,7 @@ def plot_ts_with_encodings(model, params, dataset, plots_dir):
     idx = 0
     plot_ts_with_encoding(X_train[idx], X_train_vae[idx], params.patch_len, params.n_latent)
     # todo save fig
+    # todo plot class label + prediction, use shap to plot feature importance for prediction
 
 def plot_cls_feature_importance(model, params, dataset, plots_dir):
     # get data
@@ -81,7 +82,19 @@ def plot_cls_feature_importance(model, params, dataset, plots_dir):
     feature_importance = clf.feature_importances_
 
     # todo overlay feature importance on ts plot + encodings
+    #   can maybe compare with sax?
 
+
+# todo use sequential pattern mining to search for common subsequences per class?
+# todo error analysis:
+#   Review cases where the classifier made incorrect predictions, focusing on the symbolic encoding and comparing it to
+#   the original time series.
+#   Use SHAP or LIME to identify which symbolic features were most influential in the incorrect predictions.
+#   This can help determine if specific symbols or subsequences lead to errors.
+# todo verify if certain symbols correspond to certain patterns (both ways)
+# todo test models with its training dataset and unseen dataset
+# todo Select pairs of time series with known relationships (e.g., similar trends, different noise levels).
+#   Measure distances in the latent space and verify if they correspond to their semantic similarity.
 
 def main():
     model_name = "Wine_p16_a32"
