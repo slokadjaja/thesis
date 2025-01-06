@@ -8,7 +8,7 @@ from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
 import seaborn as sns
 import pandas as pd
-
+import umap
 # code from decoder_test.ipynb, plot_test.ipynb, ppt.ipynb
 
 
@@ -68,17 +68,38 @@ def plot_decoded_symbols(model, params, plots_dir, plot_random=False):
             plt.plot(output.detach().numpy().squeeze(), label=i)
             plt.savefig(plots_dir / 'random_decoded_symbols.png', dpi=300)
 
+def plot_tsne_umap(model, params, dataset, plots_dir):
+    """
+    Compute and plot t-SNE and UMAP embeddings for the given dataset.
 
-def plot_tsne(model, params, dataset, plots_dir):
-    # get data
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
+    TSNE can fail with Wine dataset, because the time series are very similar, and the representations could be all the same.
+    They have then zero pairwise distance and no variance, which causes numerical error in TSNE computation (chatgpt)
+    """
+
+    # Load dataset and get VAE encodings
+    X_train, y_train, _, _ = get_dataset(dataset)
     X_train_vae = vae_encoding(model, X_train, params.patch_len)
 
-    X_train_vae_embedded = TSNE().fit_transform(X_train_vae)
-    plt.scatter(X_train_vae_embedded[:, 0], X_train_vae_embedded[:, 1], c=y_train)
+    # Compute and plot t-SNE
+    X_train_vae_tsne = TSNE().fit_transform(X_train_vae)
 
-    # todo umap
-    # todo save fig
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(X_train_vae_tsne[:, 0], X_train_vae_tsne[:, 1], c=y_train, cmap='viridis', s=16)
+    plt.legend(*scatter.legend_elements(), title="Class")
+    plt.title(f"t-SNE Embeddings on {dataset}")
+    plt.savefig(plots_dir / f"TSNE_on_{dataset}.png", dpi=300)
+    plt.close()
+
+    # Compute and plot UMAP
+    X_train_vae_umap = umap.UMAP().fit_transform(X_train_vae)
+
+    plt.figure(figsize=(8, 6))
+    scatter = plt.scatter(X_train_vae_umap[:, 0], X_train_vae_umap[:, 1], c=y_train, cmap='viridis', s=16)
+    plt.legend(*scatter.legend_elements(), title="Class")
+    plt.title(f"UMAP Embeddings on {dataset}")
+    plt.savefig(plots_dir / f"UMAP_on_{dataset}.png", dpi=300)
+    plt.close()
+
 
 def plot_ts_with_encodings(model, params, dataset, plots_dir):
     # get data
