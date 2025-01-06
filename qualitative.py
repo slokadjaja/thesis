@@ -6,6 +6,8 @@ from pathlib import Path
 from aeon.datasets import load_from_tsv_file
 from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
+import seaborn as sns
+import pandas as pd
 
 # code from decoder_test.ipynb, plot_test.ipynb, ppt.ipynb
 
@@ -23,6 +25,22 @@ def get_dataset(dataset: str):
     X_test = X_test.squeeze()
 
     return X_train, y_train, X_test, y_test
+
+
+def plot_dataset_classes(dataset: str):
+    """Plot time series from a specified dataset, where time series are grouped by class."""
+    X_train, y_train, _, _ = get_dataset(dataset)
+
+    df = pd.DataFrame(X_train).T
+    df.columns = y_train  # Assign column names as labels
+    df = (df
+          .reset_index()
+          .melt(id_vars='index', var_name='Label', value_name='Value')
+          .rename(columns={'index': 'Time'})
+          )
+
+    fig = sns.lineplot(data=df, x='Time', y='Value', hue='Label').set_title(dataset).get_figure()
+    fig.savefig(f"{dataset}.png", dpi=300)
 
 
 def plot_decoded_symbols(model, params, plots_dir, plot_random=False):
