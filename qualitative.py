@@ -43,30 +43,25 @@ def plot_dataset_classes(dataset: str):
     fig.savefig(f"{dataset}.png", dpi=300)
 
 
-def plot_decoded_symbols(model, params, plots_dir, plot_random=False):
-    for i in range(params.n_latent):  # iterate over positions in encoding
-        plt.figure()
-        for j in range(params.alphabet_size):  # iterate over possible values for position
+def plot_decoded_symbols(model, params, plots_dir):
+    """Generate and save plots of the decoded output for each possible symbol at each latent position."""
+    cmap = plt.get_cmap("viridis", params.alphabet_size)
+
+    for pos in range(params.n_latent):  # iterate over positions in encoding
+        plt.figure(figsize=(8, 6))
+        for sym in range(params.alphabet_size):  # iterate over possible values for position
             enc = torch.zeros(params.n_latent, dtype=torch.int64)
-            enc[i] = j
+            enc[pos] = sym  # set symbol at position 'pos'
             z = torch.unsqueeze(F.one_hot(enc, num_classes=params.alphabet_size),
                                 0)  # z.shape: (1, n_latent, alphabet_size)
-            output = model.decoder(z.float())
-            plt.plot(output.detach().numpy().squeeze(), label=f'val={j}')
+            output = model.decoder(z.float()).detach().numpy().squeeze()    # decode latent vector
+            plt.plot(output, label=sym, color=cmap(sym))
 
-        plt.title(f'pos: {i}')
-        plt.savefig(plots_dir / 'decoded_symbols.png', dpi=300)
-
-    if plot_random:
-        # generate random
-        for i in range(20):
-            enc = torch.randint(0, params.alphabet_size - 1, (params.n_latent,))
-            print(enc)  # todo use label inside plot
-            z = torch.unsqueeze(F.one_hot(enc, num_classes=params.alphabet_size),
-                                0)  # z.shape: (1, n_latent, alphabet_size)
-            output = model.decoder(z.float())
-            plt.plot(output.detach().numpy().squeeze(), label=i)
-            plt.savefig(plots_dir / 'random_decoded_symbols.png', dpi=300)
+        plt.title(f'Decoded Outputs for Latent Position: {pos}')
+        plt.legend(loc='center right', prop={'size': 8}, bbox_to_anchor=(1.08, 0.5), title="Symbol")
+        plt.tight_layout()
+        plt.savefig(plots_dir / f'decoded_symbols_pos_{pos}.png', dpi=300)
+        plt.close()
 
 def plot_tsne_umap(model, params, dataset, plots_dir):
     """
