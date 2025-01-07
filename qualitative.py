@@ -7,12 +7,15 @@ from pathlib import Path
 from aeon.datasets import load_from_tsv_file
 from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from collections import defaultdict
 import seaborn as sns
 import numpy as np
 import pandas as pd
 import umap
-# code from decoder_test.ipynb, plot_test.ipynb, ppt.ipynb
+import xgboost as xgb
+import shap
 
 # code from plot_test.ipynb, ppt.ipynb
 # todo make sure this script works if encoding is not only 1 symbol
@@ -103,11 +106,6 @@ def plot_tsne_umap(model, params, dataset, plots_dir):
     plt.close()
 
 
-def plot_ts_with_encodings(model, params, dataset, plots_dir):
-    # get data
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train, params.patch_len)
-
 def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
     """Plot patches together that have the same encodings to see if certain patterns correspond to certain symbols."""
     train = TSDataset(dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
@@ -150,9 +148,51 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
             plt.legend()
 
         plt.title(f"Encoding = {encoding}")
-        # Save the plot
         plt.savefig(plots_dir / f"patch_group_{encoding}.png", dpi=300)
         plt.close()
+
+
+def plot_global_shap_values(model, params, dataset, plots_dir): # todo next
+    """Plot a specific time series with its encoding."""
+    X_train, y_train, X_test, y_test = get_dataset(dataset)
+    X_train_vae = vae_encoding(model, X_train, params.patch_len)
+    X_test_vae = vae_encoding(model, X_test, params.patch_len)
+
+    le = LabelEncoder()
+    y_train = le.fit_transform(y_train)
+
+    classifier = xgb.XGBClassifier(n_estimators=100, max_depth=2).fit(X_train_vae, y_train)
+
+    y_pred = classifier.predict(X_test_vae)
+    y_pred = le.inverse_transform(y_pred)
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='macro')
+    cm = confusion_matrix(y_test, y_pred)
+
+    explainer = shap.Explainer(classifier, X_train_vae, feature_names=[str(i) for i in range(X_train_vae.shape[1])])
+    shap_values = explainer(X_train_vae)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    # Plot the first SHAP bar plot (mean absolute SHAP values)
+    shap.plots.bar(shap_values, show=False, ax=axes[0])
+    axes[0].set_title("SHAP Values (Mean)")
+
+    # Plot the second SHAP bar plot (max absolute SHAP values)
+    shap.plots.bar(shap_values.abs.max(0), show=False, ax=axes[1])
+    axes[1].set_title("SHAP Values (Max)")
+
+    plt.tight_layout()
+    plt.savefig(plots_dir / "global_shap_values.png", dpi=300)
+
+
+def plot_ts_with_encodings(model, params, dataset, plots_dir, idx):
+    """Plot a specific time series with its encoding."""
+    X_train, y_train, X_test, y_test = get_dataset(dataset)
+    X_train_vae = vae_encoding(model, X_train, params.patch_len)
+
+    fig, ax = plot_ts_with_encoding(X_train[idx], X_train_vae[idx], params.patch_len, params.n_latent)
+    fig.savefig(plots_dir / f"ts_with_encodings_{idx}.png", dpi=300)
 
     # todo plot class label + prediction, use shap to plot feature importance for prediction
 
@@ -168,31 +208,29 @@ def plot_cls_feature_importance(model, params, dataset, plots_dir):
     # todo overlay feature importance on ts plot + encodings
     #   can maybe compare with sax?
 
-
 # todo use sequential pattern mining to search for common subsequences per class?
+#
 # todo error analysis:
 #   Review cases where the classifier made incorrect predictions, focusing on the symbolic encoding and comparing it to
 #   the original time series.
 #   Use SHAP or LIME to identify which symbolic features were most influential in the incorrect predictions.
 #   This can help determine if specific symbols or subsequences lead to errors.
-# todo verify if certain symbols correspond to certain patterns (both ways)
+#   see notion experiment page
+#
 # todo test models with its training dataset and unseen dataset
 # todo Select pairs of time series with known relationships (e.g., similar trends, different noise levels).
 #   Measure distances in the latent space and verify if they correspond to their semantic similarity.
 
+
 def main():
     model_name = "Wine_p16_a32"
-    dataset = "Wine"
+    dataset = "ArrowHead"
 
     plots_dir = Path(f"qualitative_plots/{model_name}_plots")
     plots_dir.mkdir(parents=True, exist_ok=True)
 
     vae, params = get_model_and_hyperparams(model_name)
-
-    plot_decoded_symbols(vae, params, plots_dir)
-    plot_tsne(vae, params, dataset, plots_dir)
-    plot_ts_with_encodings(vae, params, dataset, plots_dir)
-    plot_cls_feature_importance(vae, params, dataset, plots_dir)
+    plot_patch_groups(vae, params, dataset, plots_dir)
 
 if __name__ == "__main__":
     main()
