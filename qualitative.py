@@ -1,4 +1,5 @@
 from utils import get_model_and_hyperparams, get_dataset_path, load_p2s_dataset, vae_encoding, plot_ts_with_encoding
+from dataset import TSDataset
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -6,10 +7,15 @@ from pathlib import Path
 from aeon.datasets import load_from_tsv_file
 from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
+from collections import defaultdict
 import seaborn as sns
+import numpy as np
 import pandas as pd
 import umap
 # code from decoder_test.ipynb, plot_test.ipynb, ppt.ipynb
+
+# code from plot_test.ipynb, ppt.ipynb
+# todo make sure this script works if encoding is not only 1 symbol
 
 
 def get_dataset(dataset: str):
@@ -63,6 +69,7 @@ def plot_decoded_symbols(model, params, plots_dir):
         plt.savefig(plots_dir / f'decoded_symbols_pos_{pos}.png', dpi=300)
         plt.close()
 
+
 def plot_tsne_umap(model, params, dataset, plots_dir):
     """
     Compute and plot t-SNE and UMAP embeddings for the given dataset.
@@ -101,9 +108,55 @@ def plot_ts_with_encodings(model, params, dataset, plots_dir):
     X_train, y_train, X_test, y_test = get_dataset(dataset)
     X_train_vae = vae_encoding(model, X_train, params.patch_len)
 
+def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
+    """Plot patches together that have the same encodings to see if certain patterns correspond to certain symbols."""
+    train = TSDataset(dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
+                      norm_method=params.norm_method)
+
+    patches = train.x
+    enc = model.encode(patches).squeeze().cpu().detach().numpy()
+    patches = patches.squeeze().cpu().detach().numpy()
+
     idx = 0
     plot_ts_with_encoding(X_train[idx], X_train_vae[idx], params.patch_len, params.n_latent)
     # todo save fig
+    # Group patches by their encodings
+    grouped_patches = defaultdict(list)
+    for patch, encoding in zip(patches, enc):
+        if isinstance(encoding, np.ndarray) or isinstance(encoding, list):
+            encoding_key = tuple(encoding)
+        else:
+            encoding_key = encoding
+        grouped_patches[encoding_key].append(patch)
+
+    # Create plots for each group
+    for idx, (encoding, patches_group) in enumerate(grouped_patches.items()):
+        plt.figure(figsize=(8, 6))
+
+        if plot_individual:
+            for patch in patches_group:
+                plt.plot(patch, alpha=0.5)  # Overlay patches with some transparency
+        else:
+            patches_group = np.stack(patches_group, axis=0)
+            mean_patch = np.mean(patches_group, axis=0)
+            std_patch = np.std(patches_group, axis=0)
+
+            plt.plot(mean_patch, label="Mean", color="blue")
+            plt.fill_between(
+                range(len(mean_patch)),
+                mean_patch - std_patch,
+                mean_patch + std_patch,
+                color="blue",
+                alpha=0.2,
+                label="Mean ± 1 std"
+            )
+            plt.legend()
+
+        plt.title(f"Encoding = {encoding}")
+        # Save the plot
+        plt.savefig(plots_dir / f"patch_group_{encoding}.png", dpi=300)
+        plt.close()
+
     # todo plot class label + prediction, use shap to plot feature importance for prediction
 
 def plot_cls_feature_importance(model, params, dataset, plots_dir):
