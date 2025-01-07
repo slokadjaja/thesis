@@ -117,9 +117,6 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
     enc = model.encode(patches).squeeze().cpu().detach().numpy()
     patches = patches.squeeze().cpu().detach().numpy()
 
-    idx = 0
-    plot_ts_with_encoding(X_train[idx], X_train_vae[idx], params.patch_len, params.n_latent)
-    # todo save fig
     # Group patches by their encodings
     grouped_patches = defaultdict(list)
     for patch, encoding in zip(patches, enc):
