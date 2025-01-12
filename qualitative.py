@@ -18,7 +18,6 @@ import xgboost as xgb
 import shap
 
 # code from plot_test.ipynb, ppt.ipynb
-# todo make sure this script works if encoding is not only 1 symbol
 
 
 def get_dataset(dataset: str):
@@ -154,25 +153,25 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
 
 def plot_global_shap_values(model, params, dataset, plots_dir): # todo next
     """Plot a specific time series with its encoding."""
+    # todo works except with wine -> arrowhead or plane
+
     X_train, y_train, X_test, y_test = get_dataset(dataset)
     X_train_vae = vae_encoding(model, X_train, params.patch_len)
-    X_test_vae = vae_encoding(model, X_test, params.patch_len)
 
     le = LabelEncoder()
     y_train = le.fit_transform(y_train)
-
     classifier = xgb.XGBClassifier(n_estimators=100, max_depth=2).fit(X_train_vae, y_train)
 
-    y_pred = classifier.predict(X_test_vae)
-    y_pred = le.inverse_transform(y_pred)
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='macro')
-    cm = confusion_matrix(y_test, y_pred)
-
-    explainer = shap.Explainer(classifier, X_train_vae, feature_names=[str(i) for i in range(X_train_vae.shape[1])])
+    feature_names = [str(i) for i in range(X_train_vae.shape[1])]
+    explainer = shap.Explainer(classifier, X_train_vae, feature_names=feature_names)
     shap_values = explainer(X_train_vae)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    # multiclass classification results in multiple shap values for each feature
+    if len(shap_values.values.shape) == 3:
+        shap_values.values = shap_values.values.mean(axis=2)
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
     # Plot the first SHAP bar plot (mean absolute SHAP values)
     shap.plots.bar(shap_values, show=False, ax=axes[0])
