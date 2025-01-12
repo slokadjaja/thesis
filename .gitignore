@@ -3,6 +3,7 @@
 mlruns/
 mlartifacts/
 qualitative_plots/
+benchmarks/VQShape/checkpoints
 test*.py
 .idea/
 models/
