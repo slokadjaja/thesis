@@ -151,7 +151,7 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
         plt.close()
 
 
-def plot_global_shap_values(model, params, dataset, plots_dir): # todo next
+def plot_global_shap_values(model, params, dataset, plots_dir):
     """Plot a specific time series with its encoding."""
 
     X_train, y_train, X_test, y_test = get_dataset(dataset)
