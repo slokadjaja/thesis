@@ -182,7 +182,9 @@ def vae_encoding(model: VAE, data: np.ndarray, patch_length: int):
     # Pad data according to patch_length
     ts_len = data.shape[-1]
     mod = ts_len % patch_length
-    data = np.pad(data, ((0, 0), (0, patch_length - mod)), 'constant')
+    if mod != 0:
+        data = np.pad(data, ((0, 0), (0, patch_length - mod)), 'constant')
+
     data_tensor = torch.Tensor(data)
     encoded_patches = []  # array to store encodings
 
