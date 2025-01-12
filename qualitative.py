@@ -18,7 +18,7 @@ import xgboost as xgb
 import shap
 
 # code from plot_test.ipynb, ppt.ipynb
-
+# todo plot_tsne_umap, plot_patch_groups, plot_global_shap_values, plot_symbol_distributions -> should also work with sax
 
 def get_dataset(dataset: str):
     # Load datasets
@@ -181,6 +181,64 @@ def plot_global_shap_values(model, params, dataset, plots_dir):
 
     plt.tight_layout()
     plt.savefig(plots_dir / "global_shap_values.png", dpi=300)
+
+
+def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar", group_by_class=False,
+                              split="train"):
+    """Plot distribution of symbols at each position"""
+
+    def _plot_distribution(encodings, filename):
+        """Helper function to plot the symbol distribution based on the specified method."""
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        frequencies = np.apply_along_axis(
+            lambda x: np.bincount(x, minlength=params.alphabet_size), axis=0, arr=encodings
+        )
+
+        if vis_method == "heatmap":
+            sns.heatmap(frequencies, ax=ax, cmap="viridis", cbar=True)
+            ax.set_title("Symbol Distribution Heatmap")
+            ax.set_xlabel("Position in Patch")
+            ax.set_ylabel("Symbol")
+            fig.tight_layout()
+
+        elif vis_method == "bar":
+            cmap = plt.get_cmap("viridis", params.alphabet_size)
+            positions = list(range(encodings.shape[1]))
+            bottom = np.zeros(encodings.shape[1])
+            for symbol, freq in enumerate(frequencies):
+                ax.bar(positions, freq, bottom=bottom, label=symbol, color=cmap(symbol))
+                bottom += freq
+
+            ax.legend(loc='center right', prop={'size': 8}, bbox_to_anchor=(1.1, 0.5), title="Symbol")
+            ax.set_title("Symbol Distribution Bar Chart")
+            ax.set_xlabel("Position in Patch")
+            ax.set_ylabel("Frequency")
+        else:
+            raise ValueError(f"Unsupported visualization method: {vis_method}")
+
+        fig.savefig(plots_dir / filename, dpi=300)
+        plt.close(fig)
+
+    # Load dataset and get VAE encodings
+    X_train, y_train, X_test, y_test = get_dataset(dataset)
+    if split == "train":
+        X, y = X_train, y_train
+    elif split == "test":
+        X, y = X_test, y_test
+    else:
+        raise Exception("Invalid split")
+
+    X_vae = vae_encoding(model, X, params.patch_len)
+
+    if group_by_class:
+        unique_classes = np.unique(y)
+        for cls in unique_classes:
+            class_indices = np.where(y == cls)[0]
+            class_encodings = X_vae[class_indices]
+            _plot_distribution(class_encodings, f"symbol_dist_cls{cls}_{vis_method}.png")
+    else:
+        _plot_distribution(X_vae, f"symbol_dist_{vis_method}.png")
 
 
 def plot_ts_with_encodings(model, params, dataset, plots_dir, idx):
