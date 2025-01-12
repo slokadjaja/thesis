@@ -2,7 +2,9 @@
 /datasets/
 mlruns/
 mlartifacts/
+qualitative_plots/
 test*.py
 .idea/
 models/
 .env
+classification_results*.csv
