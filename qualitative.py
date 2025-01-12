@@ -153,7 +153,6 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
 
 def plot_global_shap_values(model, params, dataset, plots_dir): # todo next
     """Plot a specific time series with its encoding."""
-    # todo works except with wine -> arrowhead or plane
 
     X_train, y_train, X_test, y_test = get_dataset(dataset)
     X_train_vae = vae_encoding(model, X_train, params.patch_len)
@@ -166,7 +165,6 @@ def plot_global_shap_values(model, params, dataset, plots_dir): # todo next
     explainer = shap.Explainer(classifier, X_train_vae, feature_names=feature_names)
     shap_values = explainer(X_train_vae)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     # multiclass classification results in multiple shap values for each feature
     if len(shap_values.values.shape) == 3:
         shap_values.values = shap_values.values.mean(axis=2)
