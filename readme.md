@@ -50,4 +50,8 @@ Model is tested using two downstream tasks:
   - pip install -U "huggingface_hub[cli]" -> huggingface-cli login -> provide access token
 - Portfolio management task is done on stock return time series of stocks in Nasdaq-100, downloaded from Yahoo Finance. 
 We only use 78 of 100 stocks with available data in time span 01.2011 - 09.2024
-  
+
+### Benchmarks
+The performance of this method is compared to SAX symbols and encodings using [VQShape](https://arxiv.org/pdf/2411.01006).
+To use VQShape, first download a pretrained checkpoint [here](https://github.com/YunshiWen/VQShape/releases/tag/v0.1.0-cls),
+extract the file and copy to `benchmarks/VQShape` folder.
