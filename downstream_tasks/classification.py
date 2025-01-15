@@ -1,11 +1,13 @@
 """Compare performance of TS classification using SAX and VAE encodings"""
-
+import torch
 from aeon.transformations.collection.dictionary_based import SAX
 from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
 from sklearn.preprocessing import StandardScaler
 from utils import get_dataset_path, load_p2s_dataset, vae_encoding, get_model_and_hyperparams, get_or_create_experiment
+from benchmarks.VQShape.vqshape.pretrain import LitVQShape
+import torch.nn.functional as F
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
@@ -15,6 +17,8 @@ from azure.identity import ClientSecretCredential
 import os
 import mlflow
 
+checkpoint_path = "../benchmarks/VQShape/checkpoints/uea_dim256_codebook512/VQShape.ckpt"
+vqshape_model = LitVQShape.load_from_checkpoint(checkpoint_path=checkpoint_path, map_location='cpu').model
 
 def decision_tree_classifier(X_train, y_train, X_test, y_test):
     # Fit decision tree classifier
@@ -48,6 +52,18 @@ def get_vae_encoding(X, model_name):
     vae, params = get_model_and_hyperparams(model_name)
     X_vae = vae_encoding(vae, X, params.patch_len)
     return X_vae
+
+
+def get_vqshape_encoding(X, params):
+    X = torch.from_numpy(X).to(torch.float32)
+    X = F.interpolate(X, 512, mode='linear')  # first interpolate to 512 timesteps
+    X = X.squeeze()
+
+    representations, _ = vqshape_model(X, mode='tokenize')
+    tokens = representations['token']
+    tokens = tokens.view(tokens.size(0), -1).detach().cpu().numpy()
+
+    return tokens
 
 
 def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, model_name: str, params):
@@ -97,15 +113,19 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
     # Collect results across experiments
     all_results = []
 
-    total_iters = len(datasets) * (len(vae_models) + len(sax_params))
+    total_iters = len(datasets) * (len(vae_models) + len(sax_params) + 1)
     with tqdm(total=total_iters) as pbar:
         for dataset in datasets:
+            # VQShape experiment
+            vqshape_result = run_experiment(dataset, iters_per_setting, get_vqshape_encoding, "vqshape", None)
+            all_results = all_results + vqshape_result
+            pbar.update(1)
+
+            # SAX experiments
             for idx, sax_param in enumerate(sax_params):
-                # SAX experiments
                 sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, f"sax_{idx}",
                                              params=sax_param)
                 all_results = all_results + sax_results
-
                 pbar.update(1)
 
             # VAE experiments
@@ -113,7 +133,6 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
                 vae_results = run_experiment(dataset, iters_per_setting, get_vae_encoding, vae_model,
                                              params=vae_model)
                 all_results = all_results + vae_results
-
                 pbar.update(1)
 
     all_results = pd.DataFrame.from_records(all_results)
