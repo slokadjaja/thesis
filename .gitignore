@@ -9,3 +9,4 @@ test*.py
 models/
 .env
 classification_results*.csv
+__pycache__/
