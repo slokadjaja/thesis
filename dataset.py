@@ -5,13 +5,13 @@ import pandas as pd
 from utils import get_dataset_path, load_p2s_dataset
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 from pathlib import Path
-
+from pyts.decomposition import SingularSpectrumAnalysis
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
 
 class TSDataset(Dataset):
     def __init__(self, names: list[str] | str, split: str, patch_len=None, normalize=False, norm_method="standard",
-                 pad=True, overlap=False, stride=1):
+                 pad=True, overlap=False, stride=1, component=None):
         """
         :param names: list or string of dataset names from the UCR collection or other supported datasets
         :param split: either "test" or "train"
@@ -67,6 +67,17 @@ class TSDataset(Dataset):
                     raise Exception("choose between standard, minmax, or robust")
 
                 x_np = scaler.fit_transform(x_np)
+
+            if component is not None:
+                ssa = SingularSpectrumAnalysis(window_size=100, groups="auto")
+                X_ssa = ssa.fit_transform(x_np)
+
+                if component == "trend":
+                    x_np = X_ssa[:, 0, :]
+                elif component == "seasonality":
+                    x_np = X_ssa[:, 1, :]
+                elif component == "residual":
+                    x_np = X_ssa[:, 2, :]
 
             # split ts into patches
             if self.patch_len is not None:

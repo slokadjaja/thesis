@@ -251,12 +251,16 @@ def plot_loss(loss_dict: dict[str, list], dataset: str):
     return fig
 
 
-def get_model_and_hyperparams(model_name: str) -> tuple[VAE, Params]:
+def get_model_and_hyperparams(model_name: str, component=None) -> tuple[VAE, Params]:
     """Get a model in eval mode and hyperparameters used to train the model."""
 
     current_dir = Path(__file__).resolve().parent
-    model_path = current_dir / "models" / model_name / "model.pt"
-    params_path = current_dir / "models" / model_name / "params.json"
+    if component is not None:
+        model_path = current_dir / "models" / model_name / component / "model.pt"
+        params_path = current_dir / "models" / model_name / component / "params.json"
+    else:
+        model_path = current_dir / "models" / model_name / "model.pt"
+        params_path = current_dir / "models" / model_name / "params.json"
 
     params = Params(params_path)
     ts_length = get_ts_length(params.dataset)

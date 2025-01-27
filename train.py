@@ -9,9 +9,9 @@ import mlflow
 from pathlib import Path
 import json
 import os
-
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
+
 
 def temp_exp_annealing(initial_temp, epoch, decay_rate=0.99):
     """
@@ -21,7 +21,7 @@ def temp_exp_annealing(initial_temp, epoch, decay_rate=0.99):
 
 
 class Trainer:
-    def __init__(self, params, experiment_name="train", run_name="test_run", azure=True):
+    def __init__(self, params, experiment_name="train", run_name="test_run", azure=True, component=None):
         if azure:
             load_dotenv()
             credential = ClientSecretCredential(os.environ["AZURE_TENANT_ID"], os.environ["AZURE_CLIENT_ID"],
@@ -30,12 +30,14 @@ class Trainer:
 
         self.experiment_name = experiment_name
         self.run_name = run_name
-
+        self.component = component
         self.params = params
         self.seed = params.seed
-
         if self.seed:
             set_seed(self.seed)
+
+        # if component is set, then this model is part of a larger run containing multiple models
+        self.nested = True if component is not None else False
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.input_dim = get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
@@ -45,7 +47,7 @@ class Trainer:
 
         # Prepare dataloader
         train_dataset = TSDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
-                                   norm_method=params.norm_method)
+                                   norm_method=params.norm_method, component=self.component)
         self.train_dataloader = DataLoader(train_dataset, batch_size=params.batch_size, shuffle=True)
 
         # Initialize metrics lists
@@ -53,6 +55,8 @@ class Trainer:
 
         # Directory name to save results
         self.dir_name = "models"
+        base_path = f"{self.dir_name}/{self.run_name}"
+        self.model_path = base_path if self.component is None else f"{base_path}/{self.component}"
 
     def train_one_epoch(self):
         self.model.train()
@@ -93,7 +97,9 @@ class Trainer:
         experiment_id = get_or_create_experiment(self.experiment_name)
         mlflow.set_experiment(experiment_id=experiment_id)
 
-        with mlflow.start_run(experiment_id=experiment_id, run_name=self.run_name):
+        with mlflow.start_run(experiment_id=experiment_id, 
+                              run_name=self.run_name if self.component is None else self.component, 
+                              nested=self.nested):
             mlflow.log_params(self.params.dict)
             for epoch in tqdm(range(self.params.epoch), desc="Epoch"):
                 loss, rec_loss, kl_div, closs = self.train_one_epoch()
@@ -109,7 +115,7 @@ class Trainer:
 
     def save_model_artifacts(self):
         """Save model and architecture details"""
-        model_dir = Path(f"{self.dir_name}/{self.run_name}")
+        model_dir = Path(self.model_path)
         model_dir.mkdir(parents=True, exist_ok=True)
 
         torch.save(self.model.state_dict(), model_dir / "model.pt")
@@ -124,7 +130,7 @@ class Trainer:
 
     def plot_results(self):
         """Plot reconstruction examples and training results"""
-        plot_dir = Path(f"{self.dir_name}/{self.run_name}/plots")
+        plot_dir = Path(f"{self.model_path}/plots")
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot reconstruction examples
