@@ -27,3 +27,7 @@ shap
 statsmodels
 lightning
 pyts
+einops
+gsppy
+prefixspan
+wandb
