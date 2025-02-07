@@ -5,7 +5,7 @@ from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
 from sklearn.preprocessing import StandardScaler
-from utils import get_dataset_path, load_p2s_dataset, vae_encoding, get_model_and_hyperparams, get_or_create_experiment
+from utils import get_or_create_experiment, get_dataset, get_sax_encoding, get_vae_encoding, get_vqshape_encoding
 from benchmarks.VQShape.vqshape.pretrain import LitVQShape
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -14,11 +14,10 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
+from pathlib import Path
 import os
 import mlflow
 
-checkpoint_path = "../benchmarks/VQShape/checkpoints/uea_dim256_codebook512/VQShape.ckpt"
-vqshape_model = LitVQShape.load_from_checkpoint(checkpoint_path=checkpoint_path, map_location='cpu').model
 
 def decision_tree_classifier(X_train, y_train, X_test, y_test):
     # Fit decision tree classifier
@@ -42,43 +41,13 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
     return {"train_accuracy": train_acc, "accuracy": acc, "f1": f1, "precision": p, "recall": r}
 
 
-def get_sax_encoding(X, sax_params):
-    sax = SAX(**sax_params)
-    X_sax = sax.fit_transform(X).squeeze()
-    return X_sax
-
-
-def get_vae_encoding(X, model_name):
-    vae, params = get_model_and_hyperparams(model_name)
-    X_vae = vae_encoding(vae, X, params.patch_len)
-    return X_vae
-
-
-def get_vqshape_encoding(X, params):
-    X = torch.from_numpy(X).to(torch.float32)
-    X = F.interpolate(X, 512, mode='linear')  # first interpolate to 512 timesteps
-    X = X.squeeze()
-
-    representations, _ = vqshape_model(X, mode='tokenize')
-    tokens = representations['token']
-    tokens = tokens.view(tokens.size(0), -1).detach().cpu().numpy()
-
-    return tokens
-
-
 def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, model_name: str, params):
-    # Load datasets
-    if dataset == "p2s":
-        X_train, y_train = load_p2s_dataset("train")
-        X_test, y_test = load_p2s_dataset("test")
-    else:
-        X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
-        X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
+    X_train, y_train, X_test, y_test = get_dataset(dataset)
 
     # todo adjust to models
     scaler = StandardScaler()
-    X_train = np.expand_dims(scaler.fit_transform(X_train.squeeze()), axis=1)
-    X_test = np.expand_dims(scaler.transform(X_test.squeeze()), axis=1)
+    X_train = np.expand_dims(scaler.fit_transform(X_train), axis=1)
+    X_test = np.expand_dims(scaler.transform(X_test), axis=1)
 
     # Get encodings
     X_train_emb = enc_function(X_train, params)

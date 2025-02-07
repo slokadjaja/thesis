@@ -2,14 +2,19 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-import torch.distributions as dist
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
+from aeon.datasets import load_from_tsv_file
+from aeon.transformations.collection.dictionary_based import SAX
+from benchmarks.VQShape.vqshape.pretrain import LitVQShape
 import json
 import mlflow
-import random
 from model import VAE
+from typing import Any, Optional, Tuple
+
+checkpoint_path = Path(__file__).resolve().parent / "benchmarks/VQShape/checkpoints/uea_dim256_codebook512/VQShape.ckpt"
+vqshape_model = LitVQShape.load_from_checkpoint(checkpoint_path=checkpoint_path, map_location='cpu').model
 
 
 class Params:
@@ -73,17 +78,6 @@ def get_ts_length(name):
     return ts_length
 
 
-def cat_kl_div(logits, n_latent, alphabet_size):
-    q = dist.Categorical(logits=logits)
-    p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0 / alphabet_size, device=logits.device))
-    kl = dist.kl.kl_divergence(q, p)
-    return torch.mean(torch.sum(kl, dim=1))
-
-
-def reconstruction_loss(x_true, x_out):
-    return F.mse_loss(x_true, x_out)
-
-
 def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -123,58 +117,10 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
     return fig, ax
 
 
-def triplet_loss(batch, logits, top_q, bottom_q, m):
-    """Computes the triplet loss.
-
-    For each sample in a batch, look for positive and negative samples, then calculate the triplet loss using their
-    embeddings.
-
-    Args:
-        batch: A list of time series patches, shape: [batch_size, 1, patch_length]
-        logits: Logits tensor of shape [batch_size, n_latent, alphabet_size]
-        top_q: distance threshold for a negative pair
-        bottom_q: distance threshold for a positive pair
-        m: margin for triplet loss
-    Returns:
-        Average triplet loss over found triplets.
-    """
-
-    data = torch.squeeze(batch)
-    batch_len = data.shape[0]
-    pair_distance = torch.cdist(data, data, p=2)
-
-    triplet_loss = torch.tensor(0, device=batch.device)
-    num_triplets = 0
-
-    for i in range(batch_len):
-        anchor = logits[i]
-
-        # sample positive and negative patches
-        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data),
-                                                                                 device=pair_distance.device) != i))[0]
-        if torch.numel(pos_indices) != 0:
-            pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
-            pos_sample = logits[pos_indices[pos_rand]]
-        else:
-            continue
-
-        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data),
-                                                                              device=pair_distance.device) != i))[0]
-        if torch.numel(neg_indices) != 0:
-            neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
-            neg_sample = logits[neg_indices[neg_rand]]
-        else:
-            continue
-
-        triplet_loss = triplet_loss + F.triplet_margin_loss(anchor=anchor, positive=pos_sample, negative=neg_sample,
-                                                            margin=m)
-        num_triplets = num_triplets + 1
-
-    return triplet_loss / (num_triplets + 1e-6)  # avoid division by zero
-
-
-def vae_encoding(model: VAE, data: np.ndarray, patch_length: int):
+def vae_encoding(model: VAE, data: np.ndarray):
     """Encodes entire time series datasets."""
+    patch_length = model.input_dim
+
     # input data shape: (batch, 1, len) or (batch, len)
     if data.shape[1] == 1:
         data = data.squeeze(axis=1)
@@ -282,3 +228,43 @@ def get_or_create_experiment(experiment_name):
         return experiment.experiment_id
     else:
         return mlflow.create_experiment(experiment_name)
+
+
+def get_dataset(dataset: str):
+    """Load datasets for downstream tasks."""
+    if dataset == "p2s":
+        X_train, y_train = load_p2s_dataset("train")
+        X_test, y_test = load_p2s_dataset("test")
+    else:
+        X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
+        X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
+
+    X_train = X_train.squeeze()
+    X_test = X_test.squeeze()
+
+    return X_train, y_train, X_test, y_test
+
+
+def get_sax_encoding(X, sax_params):
+    sax = SAX(**sax_params)
+    X_sax = sax.fit_transform(X).squeeze()
+    return X_sax
+
+
+def get_vae_encoding(X, model_name: str):
+    """Retrieves a VAE model by name and encodes the input time series data."""
+    vae, params = get_model_and_hyperparams(model_name)
+    X_vae = vae_encoding(vae, X)
+    return X_vae
+
+
+def get_vqshape_encoding(X, params):
+    X = torch.from_numpy(X).to(torch.float32)
+    X = F.interpolate(X, 512, mode='linear')  # first interpolate to 512 timesteps
+    X = X.squeeze()
+
+    representations, _ = vqshape_model(X, mode='tokenize')
+    tokens = representations['token']
+    tokens = tokens.view(tokens.size(0), -1).detach().cpu().numpy()
+
+    return tokens

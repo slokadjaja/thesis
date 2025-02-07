@@ -1,8 +1,9 @@
 import torch
 from torch.utils.data import DataLoader
+import torch.distributions as dist
+import torch.nn.functional as F
 from dataset import TSDataset
-from utils import get_ts_length, cat_kl_div, reconstruction_loss, set_seed, Params, triplet_loss, \
-    plot_reconstructions, plot_loss, get_or_create_experiment
+from utils import get_ts_length, set_seed, Params, plot_reconstructions, plot_loss, get_or_create_experiment
 from model import VAE
 from tqdm import tqdm
 import mlflow
@@ -11,6 +12,67 @@ import json
 import os
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
+
+
+def cat_kl_div(logits, n_latent, alphabet_size):
+    q = dist.Categorical(logits=logits)
+    p = dist.Categorical(probs=torch.full((n_latent, alphabet_size), 1.0 / alphabet_size, device=logits.device))
+    kl = dist.kl.kl_divergence(q, p)
+    return torch.mean(torch.sum(kl, dim=1))
+
+
+def reconstruction_loss(x_true, x_out):
+    return F.mse_loss(x_true, x_out)
+
+
+def triplet_loss(batch, logits, top_q, bottom_q, m):
+    """Computes the triplet loss.
+
+    For each sample in a batch, look for positive and negative samples, then calculate the triplet loss using their
+    embeddings.
+
+    Args:
+        batch: A list of time series patches, shape: [batch_size, 1, patch_length]
+        logits: Logits tensor of shape [batch_size, n_latent, alphabet_size]
+        top_q: distance threshold for a negative pair
+        bottom_q: distance threshold for a positive pair
+        m: margin for triplet loss
+    Returns:
+        Average triplet loss over found triplets.
+    """
+
+    data = torch.squeeze(batch)
+    batch_len = data.shape[0]
+    pair_distance = torch.cdist(data, data, p=2)
+
+    triplet_loss = torch.tensor(0, device=batch.device)
+    num_triplets = 0
+
+    for i in range(batch_len):
+        anchor = logits[i]
+
+        # sample positive and negative patches
+        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data),
+                                                                                 device=pair_distance.device) != i))[0]
+        if torch.numel(pos_indices) != 0:
+            pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
+            pos_sample = logits[pos_indices[pos_rand]]
+        else:
+            continue
+
+        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data),
+                                                                              device=pair_distance.device) != i))[0]
+        if torch.numel(neg_indices) != 0:
+            neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
+            neg_sample = logits[neg_indices[neg_rand]]
+        else:
+            continue
+
+        triplet_loss = triplet_loss + F.triplet_margin_loss(anchor=anchor, positive=pos_sample, negative=neg_sample,
+                                                            margin=m)
+        num_triplets = num_triplets + 1
+
+    return triplet_loss / (num_triplets + 1e-6)  # avoid division by zero
 
 
 def temp_exp_annealing(initial_temp, epoch, decay_rate=0.99):

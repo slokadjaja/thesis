@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 
 def calc_distances():
+    # todo this works per patch, implement method to calculate this per ts
     vae, params = get_model_and_hyperparams("fc")
     train = TSDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
                        norm_method=params.norm_method)
@@ -34,6 +35,7 @@ def calc_distances():
 
             enc1 = vae.encode(patch1).squeeze().cpu().detach().numpy()
             enc2 = vae.encode(patch2).squeeze().cpu().detach().numpy()
+            # todo bug with stocks dataset
             hamming_arr.append(distance.hamming(enc1, enc2))
 
             pbar.update(1)

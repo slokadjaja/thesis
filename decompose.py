@@ -3,7 +3,7 @@ from utils import Params, get_or_create_experiment, get_model_and_hyperparams, v
 import mlflow
 from tqdm import tqdm
 import numpy as np
-from qualitative import get_dataset     # todo move method somewhere else
+from utils import get_dataset
 
 
 def train_multiple(params, exp_name, run_name, use_azure, components):
@@ -34,7 +34,7 @@ def encode_multiple(data: np.ndarray, model_name: str, components: list[str]):
     
     for component in components:
         vae, params = get_model_and_hyperparams(model_name, component=component)
-        encoding = vae_encoding(vae, data, params.patch_len)
+        encoding = vae_encoding(vae, data)
         all_encodings.append(encoding)
 
     final_encoding = np.concatenate(all_encodings, axis=1)

@@ -44,6 +44,8 @@ Model is tested using two downstream tasks:
     
     </details>
 
+Run classification code using ```python -m downstream_tasks.classification``` from project root
+
 ### Datasets
 - Time series classification is done on the [UCR Dataset](https://www.cs.ucr.edu/%7Eeamonn/time_series_data_2018/) and the [p2s dataset](https://huggingface.co/datasets/AIML-TUDA/P2S) by AIML group of TU Darmstadt
   - To use the p2s dataset, Login using `huggingface-cli login` 

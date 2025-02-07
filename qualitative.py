@@ -1,10 +1,9 @@
-from utils import get_model_and_hyperparams, get_dataset_path, load_p2s_dataset, vae_encoding, plot_ts_with_encoding
+from utils import get_model_and_hyperparams, vae_encoding, plot_ts_with_encoding, get_dataset
 from dataset import TSDataset
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from pathlib import Path
-from aeon.datasets import load_from_tsv_file
 from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -17,22 +16,39 @@ import umap
 import xgboost as xgb
 import shap
 
-# code from plot_test.ipynb, ppt.ipynb
 # todo plot_tsne_umap, plot_patch_groups, plot_global_shap_values, plot_symbol_distributions -> should also work with sax
 
-def get_dataset(dataset: str):
-    # Load datasets
-    if dataset == "p2s":
-        X_train, y_train = load_p2s_dataset("train")
-        X_test, y_test = load_p2s_dataset("test")
-    else:
-        X_train, y_train = load_from_tsv_file(get_dataset_path(dataset, "train"))
-        X_test, y_test = load_from_tsv_file(get_dataset_path(dataset, "test"))
 
-    X_train = X_train.squeeze()
-    X_test = X_test.squeeze()
+def find_sequence_in_pattern(sequence, pattern):
+    """
+    Locate indices in the sequence that match the pattern. Pattern could be non-contiguous
 
-    return X_train, y_train, X_test, y_test
+    Parameters:
+        sequence (list): The main sequence to search in.
+        pattern (list): The pattern to match.
+
+    Returns:
+        list: List of indices in the sequence that match the pattern.
+              Returns an empty list if no match is found.
+    """
+    indices = []
+    seq_idx = 0  # Pointer for the sequence
+
+    # Iterate through the pattern
+    for pat_item in pattern:
+        # Search for the current pattern item in the sequence from the current pointer
+        while seq_idx < len(sequence) and sequence[seq_idx] != pat_item:
+            seq_idx += 1
+        
+        # If the item is found, save the index
+        if seq_idx < len(sequence):
+            indices.append(seq_idx)
+            seq_idx += 1  # Move to the next position in the sequence
+        else:
+            # Pattern item not found, return an empty list
+            return []
+
+    return indices
 
 
 def plot_dataset_classes(dataset: str):
@@ -82,7 +98,7 @@ def plot_tsne_umap(model, params, dataset, plots_dir):
 
     # Load dataset and get VAE encodings
     X_train, y_train, _, _ = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train, params.patch_len)
+    X_train_vae = vae_encoding(model, X_train)
 
     # Compute and plot t-SNE
     X_train_vae_tsne = TSNE().fit_transform(X_train_vae)
@@ -155,7 +171,7 @@ def plot_global_shap_values(model, params, dataset, plots_dir):
     """Plot a specific time series with its encoding."""
 
     X_train, y_train, X_test, y_test = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train, params.patch_len)
+    X_train_vae = vae_encoding(model, X_train)
 
     le = LabelEncoder()
     y_train = le.fit_transform(y_train)
@@ -229,7 +245,7 @@ def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar
     else:
         raise Exception("Invalid split")
 
-    X_vae = vae_encoding(model, X, params.patch_len)
+    X_vae = vae_encoding(model, X)
 
     if group_by_class:
         unique_classes = np.unique(y)
