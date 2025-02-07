@@ -6,6 +6,8 @@ qualitative_plots/
 benchmarks/VQShape/checkpoints
 test*.py
 .idea/
+.ruff_cache/
+.vscode/
 models/
 .env
 classification_results*.csv
