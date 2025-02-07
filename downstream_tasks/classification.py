@@ -1,20 +1,14 @@
 """Compare performance of TS classification using SAX and VAE encodings"""
-import torch
-from aeon.transformations.collection.dictionary_based import SAX
-from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
 from sklearn.preprocessing import StandardScaler
 from utils import get_or_create_experiment, get_dataset, get_sax_encoding, get_vae_encoding, get_vqshape_encoding
-from benchmarks.VQShape.vqshape.pretrain import LitVQShape
-import torch.nn.functional as F
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
-from pathlib import Path
 import os
 import mlflow
 
