@@ -1,5 +1,8 @@
-from utils import get_model_and_hyperparams, vae_encoding, plot_ts_with_encoding, get_dataset
+from utils import Params, get_model_and_hyperparams, plot_ts_with_encoding, get_dataset, get_vae_encoding, get_sax_encoding
 from dataset import TSDataset
+from model import VAE
+import itertools
+import math
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -9,14 +12,14 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from collections import defaultdict
+from gsppy.gsp import GSP
+from prefixspan import PrefixSpan
 import seaborn as sns
 import numpy as np
 import pandas as pd
 import umap
 import xgboost as xgb
 import shap
-
-# todo plot_tsne_umap, plot_patch_groups, plot_global_shap_values, plot_symbol_distributions -> should also work with sax
 
 
 def find_sequence_in_pattern(sequence, pattern):
@@ -67,7 +70,7 @@ def plot_dataset_classes(dataset: str):
     fig.savefig(f"{dataset}.png", dpi=300)
 
 
-def plot_decoded_symbols(model, params, plots_dir):
+def plot_decoded_symbols(model: VAE, params: Params, plots_dir: Path):
     """Generate and save plots of the decoded output for each possible symbol at each latent position."""
     cmap = plt.get_cmap("viridis", params.alphabet_size)
 
@@ -88,47 +91,50 @@ def plot_decoded_symbols(model, params, plots_dir):
         plt.close()
 
 
-def plot_tsne_umap(model, params, dataset, plots_dir):
+def plot_tsne_umap(X_encoded, y, dataset_name: str, plots_dir: Path):
     """
     Compute and plot t-SNE and UMAP embeddings for the given dataset.
 
     TSNE can fail with Wine dataset, because the time series are very similar, and the representations could be all the same.
-    They have then zero pairwise distance and no variance, which causes numerical error in TSNE computation (chatgpt)
+    They have then zero pairwise distance and no variance, which causes numerical error in TSNE computation (source: chatgpt)
     """
-
-    # Load dataset and get VAE encodings
-    X_train, y_train, _, _ = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train)
-
     # Compute and plot t-SNE
-    X_train_vae_tsne = TSNE().fit_transform(X_train_vae)
+    X_enc_tsne = TSNE().fit_transform(X_encoded)
 
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(X_train_vae_tsne[:, 0], X_train_vae_tsne[:, 1], c=y_train, cmap='viridis', s=16)
+    scatter = plt.scatter(X_enc_tsne[:, 0], X_enc_tsne[:, 1], c=y, cmap='viridis', s=16)
     plt.legend(*scatter.legend_elements(), title="Class")
-    plt.title(f"t-SNE Embeddings on {dataset}")
-    plt.savefig(plots_dir / f"TSNE_on_{dataset}.png", dpi=300)
+    plt.title(f"t-SNE Embeddings on {dataset_name}")
+    plt.savefig(plots_dir / f"TSNE_on_{dataset_name}.png", dpi=300)
     plt.close()
 
     # Compute and plot UMAP
-    X_train_vae_umap = umap.UMAP().fit_transform(X_train_vae)
+    X_enc_umap = umap.UMAP().fit_transform(X_encoded)
 
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(X_train_vae_umap[:, 0], X_train_vae_umap[:, 1], c=y_train, cmap='viridis', s=16)
+    scatter = plt.scatter(X_enc_umap[:, 0], X_enc_umap[:, 1], c=y, cmap='viridis', s=16)
     plt.legend(*scatter.legend_elements(), title="Class")
-    plt.title(f"UMAP Embeddings on {dataset}")
-    plt.savefig(plots_dir / f"UMAP_on_{dataset}.png", dpi=300)
+    plt.title(f"UMAP Embeddings on {dataset_name}")
+    plt.savefig(plots_dir / f"UMAP_on_{dataset_name}.png", dpi=300)
     plt.close()
 
 
-def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
+def plot_patch_groups(model_type, model_spec: str | dict, dataset: str, plots_dir: Path, plot_individual: bool = False):
     """Plot patches together that have the same encodings to see if certain patterns correspond to certain symbols."""
-    train = TSDataset(dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
-                      norm_method=params.norm_method)
-
-    patches = train.x
-    enc = model.encode(patches).squeeze().cpu().detach().numpy()
-    patches = patches.squeeze().cpu().detach().numpy()
+    
+    if model_type == "vae":
+        model, params = get_model_and_hyperparams(model_spec)
+        train = TSDataset(dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
+                        norm_method=params.norm_method)
+        patches = train.x
+        enc = model.encode(patches).squeeze().cpu().detach().numpy()
+        patches = patches.squeeze().cpu().detach().numpy()
+    elif model_type == "sax":
+        X_train, _, _, _ = get_dataset(dataset)
+        X_encoded = get_sax_encoding(X_train, model_spec)
+        enc = X_encoded.flatten()
+        split_segments = [np.array_split(row, model_spec["n_segments"]) for row in X_train]
+        patches = list(itertools.chain.from_iterable(split_segments))
 
     # Group patches by their encodings
     grouped_patches = defaultdict(list)
@@ -147,9 +153,17 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
             for patch in patches_group:
                 plt.plot(patch, alpha=0.5)  # Overlay patches with some transparency
         else:
-            patches_group = np.stack(patches_group, axis=0)
-            mean_patch = np.mean(patches_group, axis=0)
-            std_patch = np.std(patches_group, axis=0)
+            num_patches = len(patches_group)
+            if model_type == "vae":
+                patches_group = np.stack(patches_group, axis=0)
+                mean_patch = np.mean(patches_group, axis=0)
+                std_patch = np.std(patches_group, axis=0)
+            elif model_type == "sax":   
+                # patches could have different lengths
+                max_len = max(len(patch) for patch in patches_group)
+                padded_segments = np.array([np.pad(patch, (0, max_len - len(patch)), constant_values=np.nan) for patch in patches_group])
+                mean_patch = np.nanmean(padded_segments, axis=0)
+                std_patch = np.nanstd(padded_segments, axis=0)
 
             plt.plot(mean_patch, label="Mean", color="blue")
             plt.fill_between(
@@ -161,25 +175,22 @@ def plot_patch_groups(model, params, dataset, plots_dir, plot_individual=False):
                 label="Mean ± 1 std"
             )
             plt.legend()
+            plt.text(0.05, 0.05, f"#patches: {num_patches}", transform=plt.gca().transAxes)
 
         plt.title(f"Encoding = {encoding}")
         plt.savefig(plots_dir / f"patch_group_{encoding}.png", dpi=300)
         plt.close()
 
 
-def plot_global_shap_values(model, params, dataset, plots_dir):
+def plot_global_shap_values(X_encoded, y, plots_dir: Path):
     """Plot a specific time series with its encoding."""
-
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train)
-
     le = LabelEncoder()
-    y_train = le.fit_transform(y_train)
-    classifier = xgb.XGBClassifier(n_estimators=100, max_depth=2).fit(X_train_vae, y_train)
+    y = le.fit_transform(y)
+    classifier = xgb.XGBClassifier(n_estimators=100, max_depth=2).fit(X_encoded, y)
 
-    feature_names = [str(i) for i in range(X_train_vae.shape[1])]
-    explainer = shap.Explainer(classifier, X_train_vae, feature_names=feature_names)
-    shap_values = explainer(X_train_vae)
+    feature_names = [str(i) for i in range(X_encoded.shape[1])]
+    explainer = shap.Explainer(classifier, X_encoded, feature_names=feature_names)
+    shap_values = explainer(X_encoded)
 
     # multiclass classification results in multiple shap values for each feature
     if len(shap_values.values.shape) == 3:
@@ -199,8 +210,8 @@ def plot_global_shap_values(model, params, dataset, plots_dir):
     plt.savefig(plots_dir / "global_shap_values.png", dpi=300)
 
 
-def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar", group_by_class=False,
-                              split="train"):
+def plot_symbol_distributions(X_encoded, y, alphabet_size: int, plots_dir: Path, vis_method: str = "bar", 
+                              group_by_class: bool = False):
     """Plot distribution of symbols at each position"""
 
     def _plot_distribution(encodings, filename):
@@ -208,7 +219,7 @@ def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar
         fig, ax = plt.subplots(figsize=(10, 6))
 
         frequencies = np.apply_along_axis(
-            lambda x: np.bincount(x, minlength=params.alphabet_size), axis=0, arr=encodings
+            lambda x: np.bincount(x, minlength=alphabet_size), axis=0, arr=encodings
         )
 
         if vis_method == "heatmap":
@@ -219,7 +230,7 @@ def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar
             fig.tight_layout()
 
         elif vis_method == "bar":
-            cmap = plt.get_cmap("viridis", params.alphabet_size)
+            cmap = plt.get_cmap("viridis", alphabet_size)
             positions = list(range(encodings.shape[1]))
             bottom = np.zeros(encodings.shape[1])
             for symbol, freq in enumerate(frequencies):
@@ -236,72 +247,43 @@ def plot_symbol_distributions(model, params, dataset, plots_dir, vis_method="bar
         fig.savefig(plots_dir / filename, dpi=300)
         plt.close(fig)
 
-    # Load dataset and get VAE encodings
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
-    if split == "train":
-        X, y = X_train, y_train
-    elif split == "test":
-        X, y = X_test, y_test
-    else:
-        raise Exception("Invalid split")
-
-    X_vae = vae_encoding(model, X)
-
     if group_by_class:
         unique_classes = np.unique(y)
         for cls in unique_classes:
             class_indices = np.where(y == cls)[0]
-            class_encodings = X_vae[class_indices]
+            class_encodings = X_encoded[class_indices]
             _plot_distribution(class_encodings, f"symbol_dist_cls{cls}_{vis_method}.png")
     else:
-        _plot_distribution(X_vae, f"symbol_dist_{vis_method}.png")
+        _plot_distribution(X_encoded, f"symbol_dist_{vis_method}.png")
 
 
-def plot_ts_with_encodings(model, params, dataset, plots_dir, idx):
-    """Plot a specific time series with its encoding."""
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train, params.patch_len)
+def get_common_subsequences(X_encoded, y, plots_dir):
+    """Use the GSP algorithm for sequential pattern mining to search for common subsequences per class"""
+    
+    classes = np.unique(y)
+    min_support = 0.5   # fraction of ts containing the sequence
 
-    fig, ax = plot_ts_with_encoding(X_train[idx], X_train_vae[idx], params.patch_len, params.n_latent)
-    fig.savefig(plots_dir / f"ts_with_encodings_{idx}.png", dpi=300)
-
-    # todo plot class label + prediction, use shap to plot feature importance for prediction
-
-def plot_cls_feature_importance(model, params, dataset, plots_dir):
-    # get data
-    X_train, y_train, X_test, y_test = get_dataset(dataset)
-    X_train_vae = vae_encoding(model, X_train, params.patch_len)
-    # X_test_vae = vae_encoding(model, X_test, params.patch_len)
-
-    clf = DecisionTreeClassifier().fit(X_train_vae, y_train)
-    feature_importance = clf.feature_importances_
-
-    # todo overlay feature importance on ts plot + encodings
-    #   can maybe compare with sax?
-
-# todo use sequential pattern mining to search for common subsequences per class?
-#
-# todo error analysis:
-#   Review cases where the classifier made incorrect predictions, focusing on the symbolic encoding and comparing it to
-#   the original time series.
-#   Use SHAP or LIME to identify which symbolic features were most influential in the incorrect predictions.
-#   This can help determine if specific symbols or subsequences lead to errors.
-#   see notion experiment page
-#
-# todo test models with its training dataset and unseen dataset
-# todo Select pairs of time series with known relationships (e.g., similar trends, different noise levels).
-#   Measure distances in the latent space and verify if they correspond to their semantic similarity.
+    for c in classes:
+        filtered_time_series = X_encoded[y == c].tolist()
+        print(filtered_time_series)
+        result = PrefixSpan(filtered_time_series).frequent(math.floor(min_support * len(filtered_time_series)), closed=True)
+        result = [r for r in result if len(r[1]) >= 3]   # pick sequences with 3 elements or longer
+        print(f"class: {c}")
+        print(result)
 
 
 def main():
     model_name = "Wine_p16_a32"
-    dataset = "ArrowHead"
+    dataset = "Plane"
 
     plots_dir = Path(f"qualitative_plots/{model_name}_plots")
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    vae, params = get_model_and_hyperparams(model_name)
-    plot_patch_groups(vae, params, dataset, plots_dir)
+    X_train, y_train, _, _ = get_dataset(dataset)
+    X_vae = get_vae_encoding(X_train, model_name=model_name)
+
+    get_common_subsequences(X_vae, y_train)
+
 
 if __name__ == "__main__":
     main()
