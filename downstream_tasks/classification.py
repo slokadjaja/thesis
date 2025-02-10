@@ -1,16 +1,133 @@
 """Compare performance of TS classification using SAX and VAE encodings"""
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 from utils import get_or_create_experiment, get_dataset, get_sax_encoding, get_vae_encoding, get_vqshape_encoding
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
 import numpy as np
+import itertools
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 import os
 import mlflow
+
+
+class LinearClassifier(nn.Module):
+    '''
+    A linear classifier with dropout on input features.
+    '''
+    def __init__(self, input_dim, output_dim, dropout=0):
+        super(LinearClassifier, self).__init__()
+        self.fc = nn.Linear(input_dim, output_dim)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        return self.fc(self.dropout(x))
+    
+
+def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_decay=0, dropout=0, batch_size=8):
+    # code taken from https://github.com/YunshiWen/VQShape/blob/main/benchmarks/mtsc.py
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    le = LabelEncoder()
+    y_train = le.fit_transform(y_train)
+    y_test = le.fit_transform(y_test)
+
+    X_train = torch.from_numpy(X_train).float()
+    y_train = torch.from_numpy(y_train).long()
+    X_test = torch.from_numpy(X_test).float()
+    y_test = torch.from_numpy(y_test).long()
+
+    train_loader = DataLoader(list(zip(X_train, y_train)), batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(list(zip(X_test, y_test)), batch_size=batch_size, shuffle=False)
+
+    def train_and_validate(dropout, weight_decay):
+        classifier = LinearClassifier(input_dim=X_train.shape[1], output_dim=len(np.unique(y_train)), dropout=dropout).to(device)
+        optimizer = torch.optim.Adam(classifier.parameters(), lr=0.005, weight_decay=weight_decay)
+
+        best_val_accuracy = 0
+        for epoch in range(num_epoch):
+            # Train
+            classifier.train()
+            for batch_features, batch_labels in train_loader:
+                optimizer.zero_grad()
+                outputs = classifier(batch_features.to(device))
+                loss = torch.nn.functional.cross_entropy(outputs, batch_labels.view(-1).to(device))
+                loss.backward()
+                optimizer.step()
+
+            # Validation
+            classifier.eval()
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for batch_features, batch_labels in val_loader:
+                    outputs = classifier(batch_features.to(device))
+                    _, predicted = outputs.max(1)
+                    total += batch_labels.size(0)
+                    correct += predicted.eq(batch_labels.view(-1).to(device)).sum().item()
+
+            val_accuracy = correct / total
+            if val_accuracy > best_val_accuracy:
+                best_val_accuracy = val_accuracy
+
+        return best_val_accuracy, classifier
+
+    # Do a bit of hyperparam search
+    l2_list = [0, 0.01, 0.1, 1, 10, 100]
+    dropout_list = [0, 0.2, 0.5, 0.8]
+    hyp_combinations = list(itertools.product(l2_list, dropout_list))
+
+    validation_accuracies = []
+    classifiers = []
+    print("Performing hyperparameter search (step 1/3)")
+    for weight_decay, dropout in hyp_combinations:
+        acc, clf = train_and_validate(dropout=dropout, weight_decay=weight_decay)
+        validation_accuracies.append(acc)
+        classifiers.append(clf)
+
+    best_idx = np.argmax(validation_accuracies)
+    best_classifier = classifiers[best_idx]
+
+    # Training Accuracy
+    best_classifier.eval()
+    train_correct = 0
+    train_total = 0
+    print("Calculating training set accuracy (step 2/3)")
+    with torch.no_grad():
+        for batch_features, batch_labels in train_loader:
+            outputs = best_classifier(batch_features.to(device))
+            _, predicted = outputs.max(1)
+            train_total += batch_labels.size(0)
+            train_correct += predicted.eq(batch_labels.view(-1).to(device)).sum().item()
+
+    train_acc = train_correct / train_total
+
+    # Final Evaluation on Test Set
+    best_classifier.eval()
+    y_true = []
+    y_pred = []
+    print("Calculating metrics on test set (step 3/3)")
+    with torch.no_grad():
+        for batch_features, batch_labels in val_loader:
+            outputs = best_classifier(batch_features.to(device))
+            _, predicted = outputs.max(1)
+            y_true.extend(batch_labels.view(-1).cpu().numpy())
+            y_pred.extend(predicted.cpu().numpy())
+
+    # Metrics Calculation
+    acc = accuracy_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred, average='weighted')
+    p = precision_score(y_true, y_pred, average='weighted')
+    r = recall_score(y_true, y_pred, average='weighted')
+
+    return {"train_accuracy": train_acc, "accuracy": acc, "f1": f1, "precision": p, "recall": r}
 
 
 def decision_tree_classifier(X_train, y_train, X_test, y_test):
