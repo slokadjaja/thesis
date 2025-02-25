@@ -209,8 +209,7 @@ def get_model_and_hyperparams(model_name: str, component=None) -> tuple[VAE, Par
         params_path = current_dir / "models" / model_name / "params.json"
 
     params = Params(params_path)
-    ts_length = get_ts_length(params.dataset)
-    input_dim = ts_length if params.patch_len is None else params.patch_len
+    input_dim = get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
 
     vae = VAE(input_dim=input_dim, alphabet_size=params.alphabet_size, n_latent=params.n_latent,
               temperature=params.temperature, model=params.arch)
