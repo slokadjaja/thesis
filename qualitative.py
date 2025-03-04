@@ -257,6 +257,81 @@ def plot_symbol_distributions(X_encoded, y, alphabet_size: int, plots_dir: Path,
         _plot_distribution(X_encoded, f"symbol_dist_{vis_method}.png")
 
 
+def jaccard_similarity(set1, set2):
+    """Compute Jaccard similarity between two sets."""
+    intersection = len(set1 & set2)
+    union = len(set1 | set2)
+    return intersection / union if union > 0 else 0
+
+
+def compare_ngram_sets(x, y, n=3, min_support=0.8):
+    """
+    Group x by class labels in y, compute frequent n-grams for each class, 
+    and compute Jaccard similarity between all class pairs.
+    
+    Args:
+        x (np.ndarray): Symbolic sequences (NumPy array of shape [num_samples, sequence_length]).
+        y (np.ndarray): Class labels (NumPy array of shape [num_samples]).
+        n (int): Minimum length of n-grams.
+        min_support (float): Threshold for frequent n-grams.
+        
+    Returns:
+        dict: Jaccard similarity scores for class pairs.
+        dict: Unique frequent n-grams per class.
+    """
+    unique_labels = np.unique(y)  # Get unique class labels
+    class_sequences = {label: x[y == label] for label in unique_labels}  # Group by class
+
+    # Compute frequent n-grams for each class
+    class_ngrams = {}
+    for label, sequences in class_sequences.items():
+        if isinstance(sequences, np.ndarray):
+            sequences = sequences.tolist()
+
+        frequent_sub = PrefixSpan(sequences).frequent(math.floor(min_support * len(sequences)), closed=True)
+        frequent_sub = {tuple(seq) for count, seq in frequent_sub if len(seq) >= n}   # pick sequences with n elements or longer
+        class_ngrams[label] = frequent_sub
+
+    # Compute Jaccard similarities & unique frequent sequences
+    jaccard_scores = {}
+    unique_ngrams = {}
+
+    for label1, label2 in itertools.product(class_ngrams.keys(), repeat=2):
+        set1, set2 = class_ngrams[label1], class_ngrams[label2]
+        jaccard_scores[(label1, label2)] = jaccard_similarity(set1, set2)
+
+    for label, ngram_set in class_ngrams.items():
+        unique_ngrams[label] = ngram_set - set.union(*(class_ngrams[l] for l in class_ngrams if l != label))
+
+    return jaccard_scores, unique_ngrams
+
+
+def plot_jaccard_heatmap(jaccard_scores: dict[tuple, float], labels: list, plots_dir: Path):
+    """
+    Plot heatmap of Jaccard similarities.
+    
+    Args:
+        jaccard_scores: Jaccard similarity values between class pairs.
+        labels : Unique class labels.
+        plots_dir : File path to save the heatmap.
+    """
+    # Create a square matrix for heatmap
+    label_to_index = {label: i for i, label in enumerate(labels)}
+    jaccard_matrix = np.zeros((len(labels), len(labels)))
+
+    # Fill the matrix with Jaccard values
+    for (label1, label2), score in jaccard_scores.items():
+        i, j = label_to_index[label1], label_to_index[label2]
+        jaccard_matrix[i, j] = score
+        jaccard_matrix[j, i] = score  # Symmetric matrix
+
+    # Plot heatmap
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(jaccard_matrix, annot=True, cmap="Blues", xticklabels=labels, yticklabels=labels)
+    plt.title("Jaccard Similarity Heatmap")
+    plt.savefig(plots_dir, dpi=300, bbox_inches="tight")
+
+
 def get_common_subsequences(X_encoded, y, plots_dir):
     """Use the GSP algorithm for sequential pattern mining to search for common subsequences per class"""
     
