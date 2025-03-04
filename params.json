@@ -12,13 +12,11 @@
   "patch_len": 16,
   "n_latent": 1,
   "alphabet_size": 32,
-  "temperature": 0.2,
-  "annealing": false,
+  "temperature": 1.0,
+  "annealing": true,
 
-  "top_quantile": 3.24,
-  "bottom_quantile": 3.24,
-  "margin": 20,
-  "alpha": 0,
+  "margin": 0.2,
+  "alpha": 1,
 
   "normalize": true,
   "norm_method": "standard",
