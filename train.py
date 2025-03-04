@@ -6,6 +6,9 @@ from dataset import TSDataset
 from utils import get_ts_length, set_seed, Params, plot_reconstructions, plot_loss, get_or_create_experiment
 from model import VAE
 from tqdm import tqdm
+from tslearn.metrics import dtw
+from itertools import combinations
+import numpy as np
 import mlflow
 from pathlib import Path
 import json
@@ -25,7 +28,48 @@ def reconstruction_loss(x_true, x_out):
     return F.mse_loss(x_true, x_out)
 
 
-def triplet_loss(batch, logits, top_q, bottom_q, m):
+def compute_thresholds(patches, method="dtw", lower=25, upper=75):
+    """Compute distance-based thresholds for positive and negative selection."""
+    distances = []
+    
+    comb = list(combinations(range(len(patches)), 2))
+    total_iters = len(comb)
+    
+    with tqdm(total=total_iters, desc="Combinations: ") as pbar:
+        for i, j in combinations(range(len(patches)), 2):  # Pairwise distances
+            if method == "dtw":
+                dist = dtw(patches[i].squeeze().cpu().detach().numpy(), patches[j].squeeze().cpu().detach().numpy())
+            elif method == "l2":
+                dist = np.linalg.norm(patches[i].squeeze().cpu().detach().numpy() - patches[j].squeeze().cpu().detach().numpy())
+            distances.append(dist)
+            pbar.update(1)
+    
+    # Convert to numpy for easier percentile calculations
+    distances = np.array(distances)
+
+    # Set thresholds based on distribution percentiles
+    T_pos = np.percentile(distances, lower)
+    T_neg = np.percentile(distances, upper)
+    T_semi = np.median(distances)  # Middle ground for semi-hard negatives
+    
+    return T_pos, T_neg, T_semi
+
+
+def compute_dtw_distance(data):
+    """Computes pairwise DTW distances for a batch of time series."""
+    batch_len = data.shape[0]
+    pairwise_dtw = torch.zeros((batch_len, batch_len), device=data.device)  # Store DTW distances
+
+    for i in range(batch_len):
+        for j in range(i + 1, batch_len):  # Compute only upper triangle
+            dtw_dist = dtw(data[i].cpu().detach().numpy(), data[j].cpu().detach().numpy())
+            pairwise_dtw[i, j] = dtw_dist
+            pairwise_dtw[j, i] = dtw_dist  # Symmetric matrix
+
+    return pairwise_dtw
+
+
+def triplet_loss(batch, labels, logits, neg_threshold, pos_threshold, m, dist_metric="dtw"):
     """Computes the triplet loss.
 
     For each sample in a batch, look for positive and negative samples, then calculate the triplet loss using their
@@ -33,35 +77,48 @@ def triplet_loss(batch, logits, top_q, bottom_q, m):
 
     Args:
         batch: A list of time series patches, shape: [batch_size, 1, patch_length]
+        labels: Class labels belonging to the patches
         logits: Logits tensor of shape [batch_size, n_latent, alphabet_size]
-        top_q: distance threshold for a negative pair
-        bottom_q: distance threshold for a positive pair
+        neg_threshold: distance threshold for a negative pair
+        pos_threshold: distance threshold for a positive pair
         m: margin for triplet loss
+        dist_metric: distance metric to use for patches
     Returns:
         Average triplet loss over found triplets.
     """
 
     data = torch.squeeze(batch)
     batch_len = data.shape[0]
-    pair_distance = torch.cdist(data, data, p=2)
-
+    if dist_metric == "l2":
+        pair_distance = torch.cdist(data, data, p=2)
+    elif dist_metric == "dtw":
+        pair_distance = compute_dtw_distance(data)
+    else:
+        raise ValueError("Metric not available")
+    
     triplet_loss = torch.tensor(0, device=batch.device)
     num_triplets = 0
 
     for i in range(batch_len):
         anchor = logits[i]
 
-        # sample positive and negative patches
-        pos_indices = torch.where((pair_distance[i] <= bottom_q) & (torch.arange(len(data),
-                                                                                 device=pair_distance.device) != i))[0]
+        # Sample positive and negative patches
+                
+        # Select positive indices (same class, small distance, excluding self)
+        # pos_indices = torch.where((labels == labels[i]) & (pair_distance[i] <= pos_threshold) & (torch.arange(len(data),
+        #                                                                          device=pair_distance.device) != i))[0]
+        # Select positive indices (same class, excluding self)
+        pos_indices = torch.where((labels == labels[i]) & (torch.arange(batch_len, device=labels.device) != i))[0]
         if torch.numel(pos_indices) != 0:
             pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
             pos_sample = logits[pos_indices[pos_rand]]
         else:
             continue
 
-        neg_indices = torch.where((pair_distance[i] >= top_q) & (torch.arange(len(data),
-                                                                              device=pair_distance.device) != i))[0]
+        # Select negative indices (different class, large distance)
+        # neg_indices = torch.where((labels != labels[i]) & (pair_distance[i] >= neg_threshold))[0]
+        # Select negative indices (different class)
+        neg_indices = torch.where((labels != labels[i]))[0]
         if torch.numel(neg_indices) != 0:
             neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
             neg_sample = logits[neg_indices[neg_rand]]
@@ -112,6 +169,9 @@ class Trainer:
                                    norm_method=params.norm_method, component=self.component)
         self.train_dataloader = DataLoader(train_dataset, batch_size=params.batch_size, shuffle=True)
 
+        # Compute thresholds for triplet loss
+        self.pos_threshold, self.neg_threshold, self.mid_threshold = compute_thresholds(train_dataset.x)
+
         # Initialize metrics lists
         self.loss_arr, self.rec_arr, self.kl_arr, self.closs_arr = [], [], [], []
 
@@ -130,7 +190,7 @@ class Trainer:
             logits, output = self.model(x)
             rec_loss = reconstruction_loss(torch.squeeze(x, dim=1), torch.squeeze(output, dim=1))
             kl_div = cat_kl_div(logits, n_latent=self.params.n_latent, alphabet_size=self.params.alphabet_size)
-            closs = triplet_loss(x, logits, self.params.top_quantile, self.params.bottom_quantile, self.params.margin)
+            closs = triplet_loss(x, y, logits, self.neg_threshold, self.pos_threshold, self.params.margin)
             loss = rec_loss + self.params.beta * kl_div + self.params.alpha * closs
 
             # Backpropagation
