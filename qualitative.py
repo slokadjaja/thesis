@@ -329,7 +329,7 @@ def plot_jaccard_heatmap(jaccard_scores: dict[tuple, float], labels: list, plots
     plt.figure(figsize=(6, 5))
     sns.heatmap(jaccard_matrix, annot=True, cmap="Blues", xticklabels=labels, yticklabels=labels)
     plt.title("Jaccard Similarity Heatmap")
-    plt.savefig(plots_dir, dpi=300, bbox_inches="tight")
+    plt.savefig(plots_dir / "jaccard_heatmap.png", dpi=300, bbox_inches="tight")
 
 
 def get_common_subsequences(X_encoded, y, plots_dir):
