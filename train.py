@@ -105,10 +105,10 @@ def triplet_loss(batch, labels, logits, neg_threshold, pos_threshold, m, dist_me
         # Sample positive and negative patches
                 
         # Select positive indices (same class, small distance, excluding self)
-        # pos_indices = torch.where((labels == labels[i]) & (pair_distance[i] <= pos_threshold) & (torch.arange(len(data),
-        #                                                                          device=pair_distance.device) != i))[0]
+        pos_indices = torch.where((labels == labels[i]) & (pair_distance[i] <= pos_threshold) & (torch.arange(len(data),
+                                                                                 device=pair_distance.device) != i))[0]
         # Select positive indices (same class, excluding self)
-        pos_indices = torch.where((labels == labels[i]) & (torch.arange(batch_len, device=labels.device) != i))[0]
+        # pos_indices = torch.where((labels == labels[i]) & (torch.arange(batch_len, device=labels.device) != i))[0]
         if torch.numel(pos_indices) != 0:
             pos_rand = torch.randint(0, len(pos_indices), size=(1,), device=batch.device).item()
             pos_sample = logits[pos_indices[pos_rand]]
@@ -116,9 +116,9 @@ def triplet_loss(batch, labels, logits, neg_threshold, pos_threshold, m, dist_me
             continue
 
         # Select negative indices (different class, large distance)
-        # neg_indices = torch.where((labels != labels[i]) & (pair_distance[i] >= neg_threshold))[0]
+        neg_indices = torch.where((labels != labels[i]) & (pair_distance[i] >= neg_threshold))[0]
         # Select negative indices (different class)
-        neg_indices = torch.where((labels != labels[i]))[0]
+        # neg_indices = torch.where((labels != labels[i]))[0]
         if torch.numel(neg_indices) != 0:
             neg_rand = torch.randint(0, len(neg_indices), size=(1,), device=batch.device).item()
             neg_sample = logits[neg_indices[neg_rand]]
@@ -279,5 +279,5 @@ class Trainer:
 
 if __name__ == "__main__":
     params = Params("params.json")
-    trainer = Trainer(params, azure=False)
+    trainer = Trainer(params, azure=False, run_name="ArrowHead_p16_a32_t4")
     trainer.train()

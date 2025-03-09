@@ -264,6 +264,19 @@ def jaccard_similarity(set1, set2):
     return intersection / union if union > 0 else 0
 
 
+def compare_all_seq(x, y):
+    """Group x by class labels in y and compute Jaccard similarity between all class pairs."""
+    unique_labels = np.unique(y)  # Get unique class labels
+    class_sequences = {label: x[y == label] for label in unique_labels}  # Group by class
+
+    jaccard_scores = {}
+    for label1, label2 in itertools.product(unique_labels, repeat=2):
+        set1, set2 = set(class_sequences[label1]), set(class_sequences[label2])
+        jaccard_scores[(label1, label2)] = jaccard_similarity(set1, set2)
+
+    return jaccard_scores
+
+
 def compare_ngram_sets(x, y, n=3, min_support=0.8):
     """
     Group x by class labels in y, compute frequent n-grams for each class, 
@@ -281,6 +294,10 @@ def compare_ngram_sets(x, y, n=3, min_support=0.8):
     """
     unique_labels = np.unique(y)  # Get unique class labels
     class_sequences = {label: x[y == label] for label in unique_labels}  # Group by class
+    
+    for label in unique_labels:
+        print(f"label: {label}")
+        print(x[y == label])
 
     # Compute frequent n-grams for each class
     class_ngrams = {}
@@ -288,8 +305,13 @@ def compare_ngram_sets(x, y, n=3, min_support=0.8):
         if isinstance(sequences, np.ndarray):
             sequences = sequences.tolist()
 
-        frequent_sub = PrefixSpan(sequences).frequent(math.floor(min_support * len(sequences)), closed=True)
-        frequent_sub = {tuple(seq) for count, seq in frequent_sub if len(seq) >= n}   # pick sequences with n elements or longer
+        # frequent_sub = PrefixSpan(sequences).frequent(math.floor(min_support * len(sequences)), closed=True)
+        # frequent_sub = {tuple(seq) for count, seq in frequent_sub if len(seq) >= n}   # pick sequences with n elements or longer
+
+        # Maybe it is better if the subsequences are contiguous -> use GSP instead?
+        result = GSP(sequences).search(min_support)
+        frequent_sub = {seq for r in result for seq in r if len(seq) >= n}
+
         class_ngrams[label] = frequent_sub
 
     # Compute Jaccard similarities & unique frequent sequences
