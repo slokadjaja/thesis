@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from pathlib import Path
+from scipy.spatial import distance
 from sklearn.manifold import TSNE
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -146,14 +147,16 @@ def plot_patch_groups(model_type, model_spec: str | dict, dataset: str, plots_di
         grouped_patches[encoding_key].append(patch)
 
     # Create plots for each group
+    encoding_num_patches = {}
     for idx, (encoding, patches_group) in enumerate(grouped_patches.items()):
         plt.figure(figsize=(8, 6))
+        num_patches = len(patches_group)
+        encoding_num_patches[encoding] = num_patches
 
         if plot_individual:
             for patch in patches_group:
                 plt.plot(patch, alpha=0.5)  # Overlay patches with some transparency
         else:
-            num_patches = len(patches_group)
             if model_type == "vae":
                 patches_group = np.stack(patches_group, axis=0)
                 mean_patch = np.mean(patches_group, axis=0)
@@ -180,6 +183,8 @@ def plot_patch_groups(model_type, model_spec: str | dict, dataset: str, plots_di
         plt.title(f"Encoding = {encoding}")
         plt.savefig(plots_dir / f"patch_group_{encoding}.png", dpi=300)
         plt.close()
+
+    return encoding_num_patches
 
 
 def plot_global_shap_values(X_encoded, y, plots_dir: Path):
@@ -264,14 +269,20 @@ def jaccard_similarity(set1, set2):
     return intersection / union if union > 0 else 0
 
 
+def intra_class_similarity(x):
+    """Calculates the average similarity between all pairs of encodings using hamming distance."""
+    dist_arr = [1-distance.hamming(enc1, enc2) for enc1, enc2 in itertools.combinations(x, 2)]
+    return np.mean(dist_arr)
+
+
 def compare_all_seq(x, y):
     """Group x by class labels in y and compute Jaccard similarity between all class pairs."""
     unique_labels = np.unique(y)  # Get unique class labels
-    class_sequences = {label: x[y == label] for label in unique_labels}  # Group by class
+    class_sequences = {label: {tuple(seq) for seq in x[y == label].tolist()} for label in unique_labels}  # Group by class
 
     jaccard_scores = {}
     for label1, label2 in itertools.product(unique_labels, repeat=2):
-        set1, set2 = set(class_sequences[label1]), set(class_sequences[label2])
+        set1, set2 = class_sequences[label1], class_sequences[label2]
         jaccard_scores[(label1, label2)] = jaccard_similarity(set1, set2)
 
     return jaccard_scores
