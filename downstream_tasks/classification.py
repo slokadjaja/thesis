@@ -299,7 +299,7 @@ def classification(
             summary_df = summary_df.merge(res, on=["dataset", "model"], how="outer")
 
     print(summary_df)
-    summary_df.to_csv(f"classification_results_summary.csv")
+    summary_df.to_csv("classification_results_summary.csv")
 
     if azure:
         load_dotenv()

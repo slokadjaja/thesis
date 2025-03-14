@@ -11,7 +11,7 @@ from benchmarks.VQShape.vqshape.pretrain import LitVQShape
 import json
 import mlflow
 from model import VAE
-from typing import Any, Optional, Tuple
+
 
 checkpoint_path = (
     Path(__file__).resolve().parent
