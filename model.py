@@ -3,13 +3,15 @@ from torch import nn
 
 
 def sample_gumbel(shape: torch.Size, device: torch.device, eps=1e-20) -> torch.Tensor:
-    """ Samples from the Gumbel distribution given a tensor shape and value of epsilon for numerical stability """
+    """Samples from the Gumbel distribution given a tensor shape and value of epsilon for numerical stability"""
     U = torch.rand(shape, device=device)
     return -torch.log(-torch.log(U + eps) + eps)
 
 
-def gumbel_softmax(logits: torch.Tensor, temperature: float, device: torch.device) -> torch.Tensor:
-    """ Adds Gumbel noise to `logits` and applies softmax along the last dimension """
+def gumbel_softmax(
+    logits: torch.Tensor, temperature: float, device: torch.device
+) -> torch.Tensor:
+    """Adds Gumbel noise to `logits` and applies softmax along the last dimension"""
     input_shape = logits.shape
     y = logits + sample_gumbel(logits.shape, device=device)
     return torch.nn.functional.softmax(y / temperature, dim=-1).view(input_shape)
@@ -26,11 +28,20 @@ def conv_out_len_multiple(l_in, arr):
 
 def conv_out_len(l_in, kernel, stride, pad=0):
     import math
+
     return math.floor(1 + (l_in + 2 * pad - kernel) / stride)
 
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, alphabet_size=2, n_latent=10, temperature=1, model="fc", device=torch.device("cpu")):
+    def __init__(
+        self,
+        input_dim,
+        alphabet_size=2,
+        n_latent=10,
+        temperature=1,
+        model="fc",
+        device=torch.device("cpu"),
+    ):
         super().__init__()
 
         self.input_dim = input_dim
@@ -51,7 +62,7 @@ class VAE(nn.Module):
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(500, self.alphabet_size * self.n_latent)
+            nn.Linear(500, self.alphabet_size * self.n_latent),
         )
 
         fc_decoder = nn.Sequential(
@@ -67,10 +78,12 @@ class VAE(nn.Module):
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(500, self.input_dim)
+            nn.Linear(500, self.input_dim),
         )
 
-        len_after_conv = conv_out_len_multiple(self.input_dim, [(8, 1, 0), (5, 1, 0), (3, 1, 0)])
+        len_after_conv = conv_out_len_multiple(
+            self.input_dim, [(8, 1, 0), (5, 1, 0), (3, 1, 0)]
+        )
         cnn_encoder = nn.Sequential(
             nn.Conv1d(in_channels=1, out_channels=128, kernel_size=8),
             nn.BatchNorm1d(num_features=128),
@@ -82,7 +95,7 @@ class VAE(nn.Module):
             nn.BatchNorm1d(num_features=128),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(len_after_conv * 128, self.alphabet_size * self.n_latent)
+            nn.Linear(len_after_conv * 128, self.alphabet_size * self.n_latent),
         )
 
         cnn_decoder = nn.Sequential(

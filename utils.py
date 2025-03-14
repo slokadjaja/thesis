@@ -13,8 +13,13 @@ import mlflow
 from model import VAE
 from typing import Any, Optional, Tuple
 
-checkpoint_path = Path(__file__).resolve().parent / "benchmarks/VQShape/checkpoints/uea_dim256_codebook512/VQShape.ckpt"
-vqshape_model = LitVQShape.load_from_checkpoint(checkpoint_path=checkpoint_path, map_location='cpu').model
+checkpoint_path = (
+    Path(__file__).resolve().parent
+    / "benchmarks/VQShape/checkpoints/uea_dim256_codebook512/VQShape.ckpt"
+)
+vqshape_model = LitVQShape.load_from_checkpoint(
+    checkpoint_path=checkpoint_path, map_location="cpu"
+).model
 
 
 class Params:
@@ -34,7 +39,7 @@ class Params:
             self.__dict__.update(params)
 
     def save(self, json_path):
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(self.__dict__, f, indent=4)
 
     def update(self, json_path):
@@ -73,7 +78,7 @@ def get_ts_length(name):
         prices_df = pd.read_csv(data_dir, index_col=0)
         ts_length = len(prices_df)
     else:
-        arr = np.loadtxt(get_dataset_path(name, "train"), delimiter='\t')
+        arr = np.loadtxt(get_dataset_path(name, "train"), delimiter="\t")
         ts_length = len(arr[0]) - 1
     return ts_length
 
@@ -107,7 +112,7 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
 
     for i in range((len(ts) // seg_len) + 1):  # loop from 0 to number of segments
         seg_x = i * seg_len
-        seg_enc = enc[i * enc_len:(1 + i) * enc_len]
+        seg_enc = enc[i * enc_len : (1 + i) * enc_len]
         seg_enc = [str(x) for x in seg_enc]
         ax.axvline(seg_x, color="k", linestyle="dashed", alpha=0.5)
         # 2, 0.05, fontsize is arbitrary, need to adjust depending on ts
@@ -129,13 +134,13 @@ def vae_encoding(model: VAE, data: np.ndarray):
     ts_len = data.shape[-1]
     mod = ts_len % patch_length
     if mod != 0:
-        data = np.pad(data, ((0, 0), (0, patch_length - mod)), 'constant')
+        data = np.pad(data, ((0, 0), (0, patch_length - mod)), "constant")
 
     data_tensor = torch.Tensor(data)
     encoded_patches = []  # array to store encodings
 
     for i in range(0, data_tensor.shape[-1] - patch_length + 1, patch_length):
-        window = data_tensor[:, i:i + patch_length]
+        window = data_tensor[:, i : i + patch_length]
         window = window.unsqueeze(1)  # Shape after: (batch, 1, patch_length)
         encoded_output = model.encode(window)
 
@@ -156,9 +161,14 @@ def vae_encoding(model: VAE, data: np.ndarray):
 
 
 def load_p2s_dataset(split: str):
-    splits = {'train': 'Normal/train-00000-of-00001.parquet', 'test': 'Normal/test-00000-of-00001.parquet'}
-    df = pd.read_parquet("hf://datasets/AIML-TUDA/P2S/" + splits[split],
-                         columns=['dowel_deep_drawing_ow', 'label'])
+    splits = {
+        "train": "Normal/train-00000-of-00001.parquet",
+        "test": "Normal/test-00000-of-00001.parquet",
+    }
+    df = pd.read_parquet(
+        "hf://datasets/AIML-TUDA/P2S/" + splits[split],
+        columns=["dowel_deep_drawing_ow", "label"],
+    )
     X = np.array([list(row[0]) for row in df.values])
     y = pd.to_numeric(df.values[:, 1])
 
@@ -174,7 +184,9 @@ def plot_reconstructions(model, batch, n_data):
 
         fig, ax = plt.subplots()
         ax.plot(sample.detach().cpu().numpy().squeeze(), label="ground truth")
-        ax.plot(model(sample)[1].detach().cpu().numpy().squeeze(), label="reconstruction")
+        ax.plot(
+            model(sample)[1].detach().cpu().numpy().squeeze(), label="reconstruction"
+        )
         ax.legend()
         plt.title(f"Reconstruction Example {i}")
 
@@ -184,14 +196,14 @@ def plot_reconstructions(model, batch, n_data):
 
 
 def plot_loss(loss_dict: dict[str, list], dataset: str):
-    """Plot loss functions given a dictionary with """
+    """Plot loss functions given a dictionary with"""
     fig, ax = plt.subplots()
 
     for k, v in loss_dict.items():
         ax.plot(v, alpha=0.6, label=k)
 
     ax.legend()
-    ax.set(xlabel='Epoch', ylabel='Loss')
+    ax.set(xlabel="Epoch", ylabel="Loss")
     plt.title(f"Loss Curve ({dataset})")
 
     return fig
@@ -209,12 +221,22 @@ def get_model_and_hyperparams(model_name: str, component=None) -> tuple[VAE, Par
         params_path = current_dir / "models" / model_name / "params.json"
 
     params = Params(params_path)
-    input_dim = get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
+    input_dim = (
+        get_ts_length(params.dataset) if params.patch_len is None else params.patch_len
+    )
 
-    vae = VAE(input_dim=input_dim, alphabet_size=params.alphabet_size, n_latent=params.n_latent,
-              temperature=params.temperature, model=params.arch)
+    vae = VAE(
+        input_dim=input_dim,
+        alphabet_size=params.alphabet_size,
+        n_latent=params.n_latent,
+        temperature=params.temperature,
+        model=params.arch,
+    )
     vae.load_state_dict(
-        torch.load(model_path, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        torch.load(
+            model_path,
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
     )
     vae.eval()
 
@@ -259,11 +281,11 @@ def get_vae_encoding(X, model_name: str):
 
 def get_vqshape_encoding(X, params):
     X = torch.from_numpy(X).to(torch.float32)
-    X = F.interpolate(X, 512, mode='linear')  # first interpolate to 512 timesteps
+    X = F.interpolate(X, 512, mode="linear")  # first interpolate to 512 timesteps
     X = X.squeeze()
 
-    representations, _ = vqshape_model(X, mode='tokenize')
-    tokens = representations['token']
+    representations, _ = vqshape_model(X, mode="tokenize")
+    tokens = representations["token"]
     tokens = tokens.view(tokens.size(0), -1).detach().cpu().numpy()
 
     return tokens

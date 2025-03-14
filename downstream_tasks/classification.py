@@ -1,11 +1,24 @@
 """Compare performance of TS classification using SAX and VAE encodings"""
+
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, recall_score, precision_score
+from sklearn.metrics import (
+    f1_score,
+    accuracy_score,
+    confusion_matrix,
+    recall_score,
+    precision_score,
+)
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from utils import get_or_create_experiment, get_dataset, get_sax_encoding, get_vae_encoding, get_vqshape_encoding
+from utils import (
+    get_or_create_experiment,
+    get_dataset,
+    get_sax_encoding,
+    get_vae_encoding,
+    get_vqshape_encoding,
+)
 from tqdm import tqdm
 from typing import Callable
 import pandas as pd
@@ -18,21 +31,31 @@ import mlflow
 
 
 class LinearClassifier(nn.Module):
-    '''
+    """
     A linear classifier with dropout on input features.
-    '''
+    """
+
     def __init__(self, input_dim, output_dim, dropout=0):
         super(LinearClassifier, self).__init__()
         self.fc = nn.Linear(input_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
-        
+
     def forward(self, x):
         return self.fc(self.dropout(x))
-    
 
-def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_decay=0, dropout=0, batch_size=8):
+
+def linear_classifier(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    num_epoch=100,
+    weight_decay=0,
+    dropout=0,
+    batch_size=8,
+):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     le = LabelEncoder()
     y_train = le.fit_transform(y_train)
     y_test = le.fit_transform(y_test)
@@ -42,12 +65,22 @@ def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_de
     X_test = torch.from_numpy(X_test).float()
     y_test = torch.from_numpy(y_test).long()
 
-    train_loader = DataLoader(list(zip(X_train, y_train)), batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(list(zip(X_test, y_test)), batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        list(zip(X_train, y_train)), batch_size=batch_size, shuffle=True
+    )
+    val_loader = DataLoader(
+        list(zip(X_test, y_test)), batch_size=batch_size, shuffle=False
+    )
 
     def train_and_validate(dropout, weight_decay):
-        classifier = LinearClassifier(input_dim=X_train.shape[1], output_dim=len(np.unique(y_train)), dropout=dropout).to(device)
-        optimizer = torch.optim.Adam(classifier.parameters(), lr=0.005, weight_decay=weight_decay)
+        classifier = LinearClassifier(
+            input_dim=X_train.shape[1],
+            output_dim=len(np.unique(y_train)),
+            dropout=dropout,
+        ).to(device)
+        optimizer = torch.optim.Adam(
+            classifier.parameters(), lr=0.005, weight_decay=weight_decay
+        )
 
         best_val_accuracy = 0
         for epoch in range(num_epoch):
@@ -56,7 +89,9 @@ def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_de
             for batch_features, batch_labels in train_loader:
                 optimizer.zero_grad()
                 outputs = classifier(batch_features.to(device))
-                loss = torch.nn.functional.cross_entropy(outputs, batch_labels.view(-1).to(device))
+                loss = torch.nn.functional.cross_entropy(
+                    outputs, batch_labels.view(-1).to(device)
+                )
                 loss.backward()
                 optimizer.step()
 
@@ -69,7 +104,9 @@ def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_de
                     outputs = classifier(batch_features.to(device))
                     _, predicted = outputs.max(1)
                     total += batch_labels.size(0)
-                    correct += predicted.eq(batch_labels.view(-1).to(device)).sum().item()
+                    correct += (
+                        predicted.eq(batch_labels.view(-1).to(device)).sum().item()
+                    )
 
             val_accuracy = correct / total
             if val_accuracy > best_val_accuracy:
@@ -121,11 +158,17 @@ def linear_classifier(X_train, y_train, X_test, y_test, num_epoch=100, weight_de
 
     # Metrics Calculation
     acc = accuracy_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred, average='weighted')
-    p = precision_score(y_true, y_pred, average='weighted')
-    r = recall_score(y_true, y_pred, average='weighted')
+    f1 = f1_score(y_true, y_pred, average="weighted")
+    p = precision_score(y_true, y_pred, average="weighted")
+    r = recall_score(y_true, y_pred, average="weighted")
 
-    return {"train_accuracy": train_acc, "accuracy": acc, "f1": f1, "precision": p, "recall": r}
+    return {
+        "train_accuracy": train_acc,
+        "accuracy": acc,
+        "f1": f1,
+        "precision": p,
+        "recall": r,
+    }
 
 
 def decision_tree_classifier(X_train, y_train, X_test, y_test):
@@ -134,11 +177,11 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
 
     # Calculate F1 and accuracy score
     y_pred = clf.predict(X_test)
-    f1 = f1_score(y_test, y_pred, average='macro')
+    f1 = f1_score(y_test, y_pred, average="macro")
     acc = accuracy_score(y_test, y_pred)
     # cm = confusion_matrix(y_test, y_pred)
-    p = precision_score(y_test, y_pred, average='macro', zero_division=0)
-    r = recall_score(y_test, y_pred, average='macro', zero_division=0)
+    p = precision_score(y_test, y_pred, average="macro", zero_division=0)
+    r = recall_score(y_test, y_pred, average="macro", zero_division=0)
 
     y_pred_train = clf.predict(X_train)
     train_acc = accuracy_score(y_train, y_pred_train)
@@ -147,10 +190,22 @@ def decision_tree_classifier(X_train, y_train, X_test, y_test):
     # print(f"F1 score: {f1:.2f}")
     # print(f"Accuracy: {acc:.2f}")
 
-    return {"train_accuracy": train_acc, "accuracy": acc, "f1": f1, "precision": p, "recall": r}
+    return {
+        "train_accuracy": train_acc,
+        "accuracy": acc,
+        "f1": f1,
+        "precision": p,
+        "recall": r,
+    }
 
 
-def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable, model_name: str, params):
+def run_experiment(
+    dataset: str,
+    iters_per_setting: int,
+    enc_function: Callable,
+    model_name: str,
+    params,
+):
     X_train, y_train, X_test, y_test = get_dataset(dataset)
 
     # todo adjust to models
@@ -165,14 +220,21 @@ def run_experiment(dataset: str, iters_per_setting: int, enc_function: Callable,
     # Train decision tree classifier using encodings
     results = []
     for i in range(iters_per_setting):
-        results.append(decision_tree_classifier(X_train_emb, y_train, X_test_emb, y_test))
+        results.append(
+            decision_tree_classifier(X_train_emb, y_train, X_test_emb, y_test)
+        )
 
     results = [d | {"dataset": dataset, "model": model_name} for d in results]
     return results
 
 
-def classification(datasets: list[str], vae_models: list[str], sax_params: list[dict[str, int]],
-                   iters_per_setting: int, azure=True) -> None:
+def classification(
+    datasets: list[str],
+    vae_models: list[str],
+    sax_params: list[dict[str, int]],
+    iters_per_setting: int,
+    azure=True,
+) -> None:
     """
     Perform time series classification using SAX and VAE-based encodings.
 
@@ -195,21 +257,33 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
     with tqdm(total=total_iters) as pbar:
         for dataset in datasets:
             # VQShape experiment
-            vqshape_result = run_experiment(dataset, iters_per_setting, get_vqshape_encoding, "vqshape", None)
+            vqshape_result = run_experiment(
+                dataset, iters_per_setting, get_vqshape_encoding, "vqshape", None
+            )
             all_results = all_results + vqshape_result
             pbar.update(1)
 
             # SAX experiments
             for idx, sax_param in enumerate(sax_params):
-                sax_results = run_experiment(dataset, iters_per_setting, get_sax_encoding, f"sax_{idx}",
-                                             params=sax_param)
+                sax_results = run_experiment(
+                    dataset,
+                    iters_per_setting,
+                    get_sax_encoding,
+                    f"sax_{idx}",
+                    params=sax_param,
+                )
                 all_results = all_results + sax_results
                 pbar.update(1)
 
             # VAE experiments
             for vae_model in vae_models:
-                vae_results = run_experiment(dataset, iters_per_setting, get_vae_encoding, vae_model,
-                                             params=vae_model)
+                vae_results = run_experiment(
+                    dataset,
+                    iters_per_setting,
+                    get_vae_encoding,
+                    vae_model,
+                    params=vae_model,
+                )
                 all_results = all_results + vae_results
                 pbar.update(1)
 
@@ -229,8 +303,11 @@ def classification(datasets: list[str], vae_models: list[str], sax_params: list[
 
     if azure:
         load_dotenv()
-        credential = ClientSecretCredential(os.environ["AZURE_TENANT_ID"], os.environ["AZURE_CLIENT_ID"],
-                                            os.environ["AZURE_CLIENT_SECRET"])
+        credential = ClientSecretCredential(
+            os.environ["AZURE_TENANT_ID"],
+            os.environ["AZURE_CLIENT_ID"],
+            os.environ["AZURE_CLIENT_SECRET"],
+        )
         mlflow.set_tracking_uri(os.environ["TRACKING_URI"])
 
         experiment_id = get_or_create_experiment("classification")
@@ -245,7 +322,10 @@ if __name__ == "__main__":
     # Define experiment parameters
     cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB"]
     vae_list = ["ArrowHead_p16_a32", "Wine_p16_a32", "p2s_p128_a32"]
-    sax_params = [{"n_segments": 16, "alphabet_size": 32}, {"n_segments": 16, "alphabet_size": 48}]
+    sax_params = [
+        {"n_segments": 16, "alphabet_size": 32},
+        {"n_segments": 16, "alphabet_size": 48},
+    ]
     n_iters = 10
 
     classification(cls_datasets, vae_list, sax_params, n_iters, azure=False)

@@ -1,4 +1,4 @@
-""" Analyze relation between patch distance (dtw or L2 norm) and encoding distance (hamming distance) """
+"""Analyze relation between patch distance (dtw or L2 norm) and encoding distance (hamming distance)"""
 
 import pandas as pd
 from dataset import TSDataset
@@ -15,8 +15,13 @@ from tqdm import tqdm
 def calc_distances():
     # todo this works per patch, implement method to calculate this per ts
     vae, params = get_model_and_hyperparams("fc")
-    train = TSDataset(params.dataset, "train", patch_len=params.patch_len, normalize=params.normalize,
-                       norm_method=params.norm_method)
+    train = TSDataset(
+        params.dataset,
+        "train",
+        patch_len=params.patch_len,
+        normalize=params.normalize,
+        norm_method=params.norm_method,
+    )
     patches = train.x
 
     hamming_arr = []
@@ -41,10 +46,10 @@ def calc_distances():
             pbar.update(1)
 
     df = pd.DataFrame()
-    df['combination'] = comb
-    df['hamming'] = hamming_arr
-    df['dtw'] = dtw_arr
-    df['l2'] = l2_arr
+    df["combination"] = comb
+    df["hamming"] = hamming_arr
+    df["dtw"] = dtw_arr
+    df["l2"] = l2_arr
 
     scaler = MinMaxScaler()
     dtw_arr = np.array(dtw_arr).reshape(-1, 1)
@@ -52,23 +57,23 @@ def calc_distances():
     l2_arr = np.array(l2_arr).reshape(-1, 1)
     l2_arr = list(scaler.fit_transform(l2_arr).squeeze())
 
-    df['dtw_norm'] = dtw_arr
-    df['l2_norm'] = l2_arr
+    df["dtw_norm"] = dtw_arr
+    df["l2_norm"] = l2_arr
 
-    df.to_csv('distances.csv', index=False)
+    df.to_csv("distances.csv", index=False)
 
 
 calc_distances()
 
-data = pd.read_csv('distances.csv')
+data = pd.read_csv("distances.csv")
 
-plt.scatter(data['hamming'], data['dtw'], s=0.2)
+plt.scatter(data["hamming"], data["dtw"], s=0.2)
 plt.title("hamming distance vs dtw")
 plt.xlabel("hamming distance")
 plt.ylabel("dtw")
 plt.show()
 
-plt.scatter(data['hamming'], data['l2'], s=0.2)
+plt.scatter(data["hamming"], data["l2"], s=0.2)
 plt.title("hamming distance vs euclidean norm")
 plt.xlabel("hamming distance")
 plt.ylabel("euclidean norm")

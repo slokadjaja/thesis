@@ -9,9 +9,20 @@ from pyts.decomposition import SingularSpectrumAnalysis
 
 # for information about the datasets:  https://www.cs.ucr.edu/~eamonn/time_series_data/
 
+
 class TSDataset(Dataset):
-    def __init__(self, names: list[str] | str, split: str, patch_len=None, normalize=False, norm_method="standard",
-                 pad=True, overlap=False, stride=1, component=None):
+    def __init__(
+        self,
+        names: list[str] | str,
+        split: str,
+        patch_len=None,
+        normalize=False,
+        norm_method="standard",
+        pad=True,
+        overlap=False,
+        stride=1,
+        component=None,
+    ):
         """
         :param names: list or string of dataset names from the UCR collection or other supported datasets
         :param split: either "test" or "train"
@@ -46,12 +57,17 @@ class TSDataset(Dataset):
                 prices_df.index = pd.to_datetime(prices_df.index)
 
                 # monthly returns
-                returns_df = prices_df.pct_change().dropna().resample('MS').agg(lambda x: (x + 1).prod() - 1)
+                returns_df = (
+                    prices_df.pct_change()
+                    .dropna()
+                    .resample("MS")
+                    .agg(lambda x: (x + 1).prod() - 1)
+                )
 
                 x_np = returns_df.T.values
                 y_tensor = torch.zeros(x_np.shape[0], dtype=torch.int32)
             else:
-                arr = np.loadtxt(get_dataset_path(name, split), delimiter='\t')
+                arr = np.loadtxt(get_dataset_path(name, split), delimiter="\t")
                 y_tensor = torch.from_numpy(arr[:, 0]).to(torch.int32)
                 x_np = arr[:, 1:]
 
@@ -86,7 +102,12 @@ class TSDataset(Dataset):
                     if mod != 0:  # if time series length is not divisible by patch_len,
                         if pad:
                             # pad with zeros
-                            x_np = np.pad(x_np, ((0, 0), (0, self.patch_len - mod)), mode='constant', constant_values=0)
+                            x_np = np.pad(
+                                x_np,
+                                ((0, 0), (0, self.patch_len - mod)),
+                                mode="constant",
+                                constant_values=0,
+                            )
                         else:
                             # remove excess values
                             x_np = x_np[:, :-mod]
@@ -97,13 +118,20 @@ class TSDataset(Dataset):
                     remainder = (x_np.shape[1] - self.patch_len) % stride
                     if remainder != 0:
                         pad_len = stride - remainder
-                        x_np = np.pad(x_np, ((0, 0), (0, pad_len)), mode='constant', constant_values=0)
+                        x_np = np.pad(
+                            x_np,
+                            ((0, 0), (0, pad_len)),
+                            mode="constant",
+                            constant_values=0,
+                        )
 
                     patches = []
                     for ts in x_np:  # Iterate through each time series
                         # Extract patches using sliding window
-                        ts_patches = [list(ts[i:i + self.patch_len]) for i in
-                                      range(0, len(ts) - self.patch_len + 1, stride)]
+                        ts_patches = [
+                            list(ts[i : i + self.patch_len])
+                            for i in range(0, len(ts) - self.patch_len + 1, stride)
+                        ]
                         patches = patches + ts_patches
                     x_np = np.array(patches)
 
@@ -125,7 +153,9 @@ class TSDataset(Dataset):
     def __getitem__(self, item):
         if self.patch_len is not None:  # Need to find y index for 'item'
             # Determine which dataset 'item' belongs to
-            dataset_idx = next(idx for idx, length in enumerate(self.dataset_x_cumlen) if item < length)
+            dataset_idx = next(
+                idx for idx, length in enumerate(self.dataset_x_cumlen) if item < length
+            )
 
             # Calculates the relative index of 'item' within the specific dataset
             if dataset_idx == 0:
@@ -133,12 +163,22 @@ class TSDataset(Dataset):
                 dataset_y_length = self.dataset_y_cumlen[dataset_idx]
                 relative_x = item
             else:
-                dataset_x_length = self.dataset_x_cumlen[dataset_idx] - self.dataset_x_cumlen[dataset_idx - 1]
-                dataset_y_length = self.dataset_y_cumlen[dataset_idx] - self.dataset_y_cumlen[dataset_idx - 1]
+                dataset_x_length = (
+                    self.dataset_x_cumlen[dataset_idx]
+                    - self.dataset_x_cumlen[dataset_idx - 1]
+                )
+                dataset_y_length = (
+                    self.dataset_y_cumlen[dataset_idx]
+                    - self.dataset_y_cumlen[dataset_idx - 1]
+                )
                 relative_x = item - self.dataset_x_cumlen[dataset_idx - 1]
 
             relative_y = relative_x // (dataset_x_length // dataset_y_length)
-            y_idx = relative_y if dataset_idx == 0 else relative_y + self.dataset_y_cumlen[dataset_idx - 1]
+            y_idx = (
+                relative_y
+                if dataset_idx == 0
+                else relative_y + self.dataset_y_cumlen[dataset_idx - 1]
+            )
 
             return self.x[item], self.y[y_idx]
 
