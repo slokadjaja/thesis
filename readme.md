@@ -4,7 +4,7 @@
 We aim to learn symbolic representations of time series data in an unsupervised manner using 
 variational autoencoders (VAEs) with categorical latent variables + Gumbel-softmax reparametrization
 
-This project was developed using Python 3.11.9
+This project was developed using Python 3.11.9, package requirements are listed in ```requirements.txt```
 
 ### Experiment tracking
 MLFlow is used to log metrics, parameters and artefacts. To view runs in UI, run: ```mlflow server --host 127.0.0.1 --port 8080 ```.
