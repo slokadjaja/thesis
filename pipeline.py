@@ -6,17 +6,17 @@ from tqdm import tqdm
 import itertools
 
 if __name__ == "__main__":
-    train_datasets = ["Wine", "ArrowHead", "p2s"]
+    train_datasets = ["Rock", "Plane", "FordA", "GunPoint"]
 
     # Can also be found using optuna to save time
     patch_lens = [16, 32, 128]
     alphabet_sizes = [32, 48]
 
     use_azure = True
-    cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB"]
+    cls_datasets = ["Wine", "Rock", "Plane", "ArrowHead", "p2s", "FordA", "FordB", "GunPoint"]
     sax_params = [
         {"n_segments": 16, "alphabet_size": 32},
-        {"n_segments": 16, "alphabet_size": 48},
+        # {"n_segments": 16, "alphabet_size": 48},
     ]
     cls_trials = 10
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         desc="Pipeline progress",
     ):
         # Just to save time
-        if dataset == "p2s":
+        if dataset == "Rock":
             if patch_len == 32 or alphabet_size == 48:
                 continue
             params.epoch = 20
