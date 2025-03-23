@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Combine all apt-get commands into one RUN to reduce layers
 RUN apt-get update && \
-    apt-get install -y git wget unzip && \
+    apt-get install -y nano git wget unzip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
