@@ -113,6 +113,91 @@ def plot_decoded_symbols(model: VAE, params: Params, plots_dir: Path):
         plt.close()
 
 
+def plot_decoded_symbols_separate(model: VAE, params: Params, plots_dir: Path):
+    """Generate and save plots of the decoded output for each possible symbol at each latent position.
+    Each symbol is plotted in its own subplot instead of being combined in a single figure."""
+    color = "blue"  # Set a single color for all plots
+
+    for pos in range(params.n_latent):  # Iterate over positions in encoding
+        fig, axes = plt.subplots(
+            nrows=params.alphabet_size // 4 + (params.alphabet_size % 4 > 0), 
+            ncols=min(4, params.alphabet_size),
+            figsize=(12, 3 * (params.alphabet_size // 4 + (params.alphabet_size % 4 > 0)))
+        )
+        axes = axes.flatten() if params.alphabet_size > 1 else [axes]
+
+        for sym in range(params.alphabet_size):  # Iterate over possible values for position
+            enc = torch.zeros(params.n_latent, dtype=torch.int64)
+            enc[pos] = sym  # Set symbol at position 'pos'
+            z = torch.unsqueeze(
+                F.one_hot(enc, num_classes=params.alphabet_size), 0
+            )  # z.shape: (1, n_latent, alphabet_size)
+            output = (
+                model.decoder(z.float()).detach().numpy().squeeze()
+            )  # Decode latent vector
+            
+            ax = axes[sym]
+            ax.plot(output, label=f"Symbol {sym}", color=color)  # Use the same color for all
+            ax.set_title(f"Symbol {sym}")
+            #ax.legend()
+
+        #plt.suptitle(f"Decoded Outputs for Latent Position: {pos}")
+        plt.tight_layout()#rect=[0, 0, 1, 0.96])
+        plt.savefig(plots_dir / f"decoded_symbols_pos_{pos}.png", dpi=300)
+        plt.close()
+
+
+def reconstruct_time_series(model, params, encoded_patches):
+    """
+    Reconstructs a time series from a list of encoded patch integers.
+
+    Args:
+        encoded_patches (list of int): Each integer represents a patch encoding.
+        model: The trained VAE model with a decoder.
+        params: Hyperparameters containing `n_latent` and `alphabet_size`.
+
+    Returns:
+        np.ndarray: The reconstructed time series.
+    """
+    reconstructed_patches = []
+
+    for sym in encoded_patches:
+        # Create one-hot encoding for the given symbol
+        enc = torch.zeros(params.n_latent, dtype=torch.int64)
+        enc[0] = sym  # Assume each symbol is placed at position 0
+        z = torch.unsqueeze(F.one_hot(enc, num_classes=params.alphabet_size), 0)
+        
+        # Decode to reconstruct the patch
+        patch = model.decoder(z.float()).detach().numpy().squeeze()
+        reconstructed_patches.append(patch)
+
+    # Concatenate patches to form the full time series
+    reconstructed_series = np.concatenate(reconstructed_patches, axis=0)
+    
+    return reconstructed_series
+
+
+def plot_comparison(original_series, reconstructed_series, save_path="recon_vs_orig.png"):
+    """
+    Plots the original and reconstructed time series together.
+
+    Args:
+        original_series (np.ndarray): The original time series.
+        reconstructed_series (np.ndarray): The reconstructed time series.
+    """
+    plt.figure(figsize=(10, 4))
+    plt.plot(original_series, label="Original", linestyle="dashed", alpha=0.7)
+    plt.plot(reconstructed_series, label="Reconstructed", alpha=0.9)
+    
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.title("Original vs Reconstructed Time Series")
+    plt.legend()
+
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
 def plot_tsne_umap(X_encoded, y, dataset_name: str, plots_dir: Path):
     """
     Compute and plot t-SNE and UMAP embeddings for the given dataset.
