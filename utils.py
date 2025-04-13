@@ -91,12 +91,13 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
+def plot_ts_with_encoding(ts, enc, seg_len, enc_len, alphabet_size=32, plot_size=(12, 4)):
     """
     :param ts: array containing time series
     :param enc: array containing time series encoded as string
     :param seg_len: length of each patch
     :param enc_len: length of encoding for each patch
+    :param alphabet_size: number of possible symbols
     :param plot_size: size of plot
     :return: fig, ax
     """
@@ -110,13 +111,19 @@ def plot_ts_with_encoding(ts, enc, seg_len, enc_len, plot_size=(8, 4)):
 
     ax.plot(ts)
 
-    for i in range((len(ts) // seg_len) + 1):  # loop from 0 to number of segments
+    # Create a color map with a distinct color for each unique encoding value
+    colormap = plt.get_cmap('tab10', alphabet_size)  # Using 'tab20' colormap for distinct colors
+
+    # Create a dictionary to map encoding symbols to a color
+    # todo +1 in range?
+    for i in range((len(ts) // seg_len)):  # loop from 0 to number of segments
         seg_x = i * seg_len
         seg_enc = enc[i * enc_len : (1 + i) * enc_len]
         seg_enc = [str(x) for x in seg_enc]
         ax.axvline(seg_x, color="k", linestyle="dashed", alpha=0.5)
         # 2, 0.05, fontsize is arbitrary, need to adjust depending on ts
-        ax.text(seg_x + 2, 0.05, "".join(seg_enc), fontsize=8, transform=trans)
+        color = colormap(int(seg_enc[0]))
+        ax.text(seg_x + 5, 0.05, "".join(seg_enc), fontsize=10, color=color, transform=trans, fontweight='bold')
 
     plt.tight_layout()
     return fig, ax
