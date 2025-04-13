@@ -65,7 +65,7 @@ def find_sequence_in_pattern(sequence, pattern):
 def plot_dataset_classes(dataset: str):
     """Plot time series from a specified dataset, where time series are grouped by class."""
     X_train, y_train, _, _ = get_dataset(dataset)
-
+    y_train = y_train.astype(np.int64)
     df = pd.DataFrame(X_train).T
     df.columns = y_train  # Assign column names as labels
     df = (
@@ -73,13 +73,18 @@ def plot_dataset_classes(dataset: str):
         .melt(id_vars="index", var_name="Label", value_name="Value")
         .rename(columns={"index": "Time"})
     )
-
+    plt.rcParams.update({'font.size': 12})
+    palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
     fig = (
-        sns.lineplot(data=df, x="Time", y="Value", hue="Label")
+        sns.lineplot(data=df, x="Time", y="Value", hue="Label", palette=palette[:len(np.unique(y_train))], 
+                     alpha=0.6 if dataset=="Plane" else 1
+        )
         .set_title(dataset)
         .get_figure()
     )
+    plt.legend(loc='upper right')
     fig.savefig(f"{dataset}.png", dpi=300)
+    plt.close()
 
 
 def plot_decoded_symbols(model: VAE, params: Params, plots_dir: Path):
@@ -122,7 +127,9 @@ def plot_decoded_symbols_separate(model: VAE, params: Params, plots_dir: Path):
         fig, axes = plt.subplots(
             nrows=params.alphabet_size // 4 + (params.alphabet_size % 4 > 0), 
             ncols=min(4, params.alphabet_size),
-            figsize=(12, 3 * (params.alphabet_size // 4 + (params.alphabet_size % 4 > 0)))
+            figsize=(6, 1.25* (params.alphabet_size // 4 + (params.alphabet_size % 4 > 0))),
+            sharex=True,
+            sharey=True
         )
         axes = axes.flatten() if params.alphabet_size > 1 else [axes]
 
@@ -138,12 +145,14 @@ def plot_decoded_symbols_separate(model: VAE, params: Params, plots_dir: Path):
             
             ax = axes[sym]
             ax.plot(output, label=f"Symbol {sym}", color=color)  # Use the same color for all
-            ax.set_title(f"Symbol {sym}")
+            ax.set_title(f"Symbol {sym}", fontdict = {'fontsize' : 9})
+            ax.tick_params(axis='both', which='major', labelsize=8)
+            ax.tick_params(axis='both', which='minor', labelsize=8)
             #ax.legend()
 
         #plt.suptitle(f"Decoded Outputs for Latent Position: {pos}")
         plt.tight_layout()#rect=[0, 0, 1, 0.96])
-        plt.savefig(plots_dir / f"decoded_symbols_pos_{pos}.png", dpi=300)
+        plt.savefig(plots_dir / f"decoded_symbols_diff_axes.png", dpi=300)
         plt.close()
 
 
@@ -234,7 +243,7 @@ def plot_patch_groups(
     plot_individual: bool = False,
 ):
     """Plot patches together that have the same encodings to see if certain patterns correspond to certain symbols."""
-
+    plt.rcParams.update({'font.size': 14})
     if model_type == "vae":
         model, params = get_model_and_hyperparams(model_spec)
         train = TSDataset(
@@ -301,9 +310,9 @@ def plot_patch_groups(
                 alpha=0.2,
                 label="Mean ± 1 std",
             )
-            plt.legend()
+            plt.legend(loc="upper right")
             plt.text(
-                0.05, 0.05, f"#patches: {num_patches}", transform=plt.gca().transAxes
+                0.05, 0.05, f"#patches: {num_patches}", transform=plt.gca().transAxes,
             )
 
         plt.title(f"Encoding = {encoding}")
@@ -516,9 +525,9 @@ def plot_jaccard_heatmap(
     plt.savefig(plots_dir / "jaccard_heatmap.png", dpi=300, bbox_inches="tight")
 
 
+# todo finish
 def get_common_subsequences(X_encoded, y, plots_dir):
     """Use the GSP algorithm for sequential pattern mining to search for common subsequences per class"""
-
     classes = np.unique(y)
     min_support = 0.5  # fraction of ts containing the sequence
 
@@ -535,18 +544,18 @@ def get_common_subsequences(X_encoded, y, plots_dir):
         print(result)
 
 
-def main():
-    model_name = "Wine_p16_a32"
-    dataset = "Plane"
+if __name__ == "__main__":
+    model_name = "ArrowHead_p16_a32"
+    dataset = "ArrowHead"
 
     plots_dir = Path(f"qualitative_plots/{model_name}_plots")
     plots_dir.mkdir(parents=True, exist_ok=True)
 
     X_train, y_train, _, _ = get_dataset(dataset)
-    X_vae = get_vae_encoding(X_train, model_name=model_name)
 
-    get_common_subsequences(X_vae, y_train)
+    # Create encodings
+    X_sax = get_sax_encoding(X_train, {"n_segments": 16, "alphabet_size": 32})
+    X_vae = get_vae_encoding(X_train, model_name)
 
-
-if __name__ == "__main__":
-    main()
+    model, params = get_model_and_hyperparams(model_name)
+    plot_decoded_symbols_separate(model=model, params=params, plots_dir=plots_dir)
