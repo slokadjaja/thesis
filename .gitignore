@@ -8,7 +8,6 @@ test*.py
 .idea/
 .ruff_cache/
 .vscode/
-models/
 .env
 classification_results*.csv
 __pycache__/
