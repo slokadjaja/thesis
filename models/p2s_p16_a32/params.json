@@ -1,0 +1,1 @@
+{"seed": 10, "dataset": "p2s", "epoch": 50, "batch_size": 32, "lr": 0.0005, "beta": 0.01, "arch": "fc", "patch_len": 16, "n_latent": 1, "alphabet_size": 32, "temperature": 1.0, "annealing": true, "margin": 6, "alpha": 0, "normalize": true, "norm_method": "standard", "plot_recon": true}
